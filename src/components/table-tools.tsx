@@ -67,7 +67,7 @@ function enhance(tb: HTMLTableElement, states: Map<string, St>, key: string) {
   const head = tb.tHead;
   if (!head || head.rows.length !== 1 || tb.dataset.noTools !== undefined || tb.dataset.tt) return;
   const body = tb.tBodies[0];
-  if (!body || body.rows.length < 2 || body.querySelector("input,select,textarea")) return;
+  if (!body || body.rows.length < 1 || body.querySelector("input,select,textarea")) return;
   tb.dataset.tt = "1";
   const st = states.get(key) ?? { f: [], col: null, dir: null };
   states.set(key, st);

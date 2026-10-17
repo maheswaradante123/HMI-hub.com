@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listOrders, listQc } from "@/lib/qurban/data";
 import { bulan, todayIso } from "@/lib/qurban/format";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, Empty, Head, Table, td, th } from "@/components/qurban/ui";
 import { Field, QForm, fieldCls } from "@/components/qurban/qform";
 import { createQc } from "../actions";
@@ -36,7 +37,7 @@ export default async function QcPage() {
               <tr key={q.id} className="border-b border-line last:border-0">
                 <td className={td}><Link href={`/qurban/qc/${q.id}`} className="font-semibold text-brand underline">{q.qc_no}</Link></td>
                 <td className={td}>{bulan(q.ym)}</td><td className={td}>{q.customer_nick}</td><td className={td}>{q.publish_date.split("-").reverse().join("-")}</td>
-                <td className={td}>{canExport ? <a href={`/qurban/export/qc/${q.id}`} className="font-semibold underline">Excel</a> : ""}</td>
+                <td className={td}>{canExport ? <span className="flex items-center gap-3 whitespace-nowrap"><PdfPreview href={`/qurban/export/qc/${q.id}`} title={`Pratinjau ${q.qc_no}`} xlsx={`/qurban/export/qc/${q.id}`} /><a href={`/qurban/export/qc/${q.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/qc/${q.id}`} className="font-semibold underline">Excel</a></span> : ""}</td>
               </tr>
             ))}
           </tbody>

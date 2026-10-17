@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { getLines, getOrder, listBills, listWeighings } from "@/lib/qurban/data";
 import { CHOICE_LABEL, MODE_LABEL, bulan, kg, rp, tgl, todayIso } from "@/lib/qurban/format";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, Dl, Pill, td, th } from "@/components/qurban/ui";
 import { Field, QForm, fieldCls } from "@/components/qurban/qform";
 import {
@@ -121,7 +122,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
                           <td className={`${td} text-right tabular-nums`}>{rp(b.days * b.rate)}</td><td className={td}>{tgl(b.due_date)}</td>
                           <td className={td}><Pill status={b.status} /></td>
                           <td className={`${td} space-y-2`}>
-                            {canExport && <span className="space-x-3"><a href={`/qurban/export/bill/${b.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/bill/${b.id}`} className="font-semibold underline">Excel</a></span>}
+                            {canExport && <span className="flex items-center gap-3 whitespace-nowrap"><PdfPreview href={`/qurban/export/bill/${b.id}`} title={`Pratinjau ${b.bill_no}`} xlsx={`/qurban/export/bill/${b.id}`} /><a href={`/qurban/export/bill/${b.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/bill/${b.id}`} className="font-semibold underline">Excel</a></span>}
                             {b.status === "ISSUED" && session.can("qurban", "edit") && (
                               <QForm action={markBillPaid.bind(null, b.id)} label="Tandai lunas" />
                             )}
@@ -168,8 +169,10 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
       {full && o.status !== "CANCELLED" && (
         <Card title="Dokumen">
           <div className="flex flex-wrap gap-3">
+            {canExport && <PdfPreview href={`/qurban/export/proforma/${id}`} title={`Pratinjau ${o.pro_no}`} xlsx={`/qurban/export/proforma/${id}`} />}
             {canExport && <a href={`/qurban/export/proforma/${id}?format=pdf`} className={dl}>Unduh Proforma (PDF)</a>}
             {canExport && <a href={`/qurban/export/proforma/${id}`} className={dl}>Proforma (Excel)</a>}
+            {canExport && o.inv_no && <PdfPreview href={`/qurban/export/invoice/${id}`} title={`Pratinjau ${o.inv_no}`} xlsx={`/qurban/export/invoice/${id}`} />}
             {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}?format=pdf`} className={dl}>Unduh Invoice (PDF)</a>}
             {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}`} className={dl}>Invoice (Excel)</a>}
             {o.status === "PAID" && <Link href={`/qurban/sp/${id}`} className={dl}>Surat Perjanjian</Link>}

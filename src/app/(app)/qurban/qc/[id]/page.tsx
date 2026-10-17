@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { qcDoc } from "@/lib/qurban/docs";
 import type { Qc } from "@/lib/qurban/data";
 import { bulan, tgl } from "@/lib/qurban/format";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, td, th } from "@/components/qurban/ui";
 
 export default async function QcDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +29,7 @@ export default async function QcDetail({ params }: { params: Promise<{ id: strin
         <h1 className="mt-2 text-3xl font-bold">{q.qc_no}</h1>
         <p className="text-muted">{q.customer_nick} · {bulan(q.ym)} · publish {tgl(q.publish_date)}</p>
       </div>
-      {canExport && <a href={`/qurban/export/qc/${q.id}`} className="inline-block rounded-md bg-brand px-6 py-3 text-lg font-semibold text-white">Unduh Excel</a>}
+      {canExport && <div className="flex flex-wrap items-center gap-3"><PdfPreview href={`/qurban/export/qc/${q.id}`} title={`Pratinjau ${q.qc_no}`} xlsx={`/qurban/export/qc/${q.id}`} /><a href={`/qurban/export/qc/${q.id}?format=pdf`} className="rounded-full bg-brand px-5 py-2 font-semibold text-white">Unduh PDF</a><a href={`/qurban/export/qc/${q.id}`} className="rounded-full border border-line px-5 py-2 font-semibold">Unduh Excel</a></div>}
       <Card title="Isi laporan">
         {doc.sapi.length === 0 ? <p className="text-muted">Belum ada sapi pada bulan ini.</p> : (
           <div className="overflow-x-auto">

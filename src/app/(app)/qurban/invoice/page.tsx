@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listBills, listOrders } from "@/lib/qurban/data";
 import { bulan, rp, tgl } from "@/lib/qurban/format";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 import { QForm } from "@/components/qurban/qform";
 import { markBillPaid, markPaid } from "../actions";
@@ -52,7 +53,7 @@ export default async function InvoicePage() {
                 <td className={td}>{r.nick}</td><td className={td}>{r.cow}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(r.amount)}</td>
                 <td className={td}><Pill status={r.status} /></td>
-                <td className={td}>{canExport ? <span className="space-x-3"><a href={`${r.xls}?format=pdf`} className="font-semibold underline">PDF</a><a href={r.xls} className="font-semibold underline">Excel</a></span> : ""}</td>
+                <td className={td}>{canExport ? <span className="flex items-center gap-3 whitespace-nowrap"><PdfPreview href={r.xls} title={`Pratinjau ${r.no}`} xlsx={r.xls} /><a href={`${r.xls}?format=pdf`} className="font-semibold underline">PDF</a><a href={r.xls} className="font-semibold underline">Excel</a></span> : ""}</td>
                 <td className={td}>{r.pay}</td>
               </tr>
             ))}

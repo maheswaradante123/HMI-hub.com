@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listOrders } from "@/lib/qurban/data";
 import { kg, rp, tgl } from "@/lib/qurban/format";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 
 export default async function ProformaPage() {
@@ -28,7 +29,7 @@ export default async function ProformaPage() {
                 <td className={`${td} text-right tabular-nums`}>{rp(o.discount)}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(o.total - o.discount)}</td>
                 <td className={td}><Pill status={o.status} /></td>
-                <td className={td}>{canExport ? <span className="space-x-3"><a href={`/qurban/export/proforma/${o.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/proforma/${o.id}`} className="font-semibold underline">Excel</a></span> : ""}</td>
+                <td className={td}>{canExport ? <span className="flex items-center gap-3 whitespace-nowrap"><PdfPreview href={`/qurban/export/proforma/${o.id}`} title={`Pratinjau ${o.pro_no}`} xlsx={`/qurban/export/proforma/${o.id}`} /><a href={`/qurban/export/proforma/${o.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/proforma/${o.id}`} className="font-semibold underline">Excel</a></span> : ""}</td>
               </tr>
             ))}
           </tbody>
