@@ -8,7 +8,7 @@
   --foreground: #111114;
   --surface: #ffffff;
   --line: #e3e3e8;
-  --muted: #6b6b76;
+  --muted: var(--page-mute);
   --field: #f5f5f7;
   --brand: #111114;
   --brand-dark: #000000;
@@ -22,6 +22,30 @@
   --side-mute: #8d8d96;
   --side-act: #26262b;
   --side-line: #24242a;
+
+  /* Latar halaman: gelap secara bawaan, terang jika sistem memakai mode terang
+     (sama dengan pratinjau). Kartu tetap putih di kedua mode. */
+  --bg: #09090b;
+  --glow: rgba(232, 89, 12, 0.28);
+  --page-fg: #f4f4f5;
+  --page-mute: #a1a1aa;
+  --skel: rgba(255, 255, 255, 0.1);
+  --chip: rgba(255, 255, 255, 0.1);
+  --card-fg: #111114;
+  --card-muted: #6b6b76;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #e9ebf0;
+    --glow: rgba(232, 89, 12, 0.16);
+    --page-fg: #111114;
+    --page-mute: #5b5b66;
+    --skel: rgba(17, 17, 20, 0.08);
+    --chip: rgba(17, 17, 20, 0.08);
+    color-scheme: light;
+  }
 }
 
 @theme inline {
@@ -57,10 +81,10 @@ html {
 
 body {
   background:
-    radial-gradient(900px 420px at 88% -6%, rgba(232, 89, 12, 0.16), transparent 62%),
-    var(--background);
+    radial-gradient(900px 420px at 88% -6%, var(--glow), transparent 62%),
+    var(--bg);
   background-attachment: fixed;
-  color: var(--foreground);
+  color: var(--page-fg);
   font-family: var(--font-inter), "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
   line-height: 1.5;
 }
@@ -76,6 +100,37 @@ h1, h2, h3 {
   border-color: var(--line);
 }
 
+/* Di dalam kartu putih, teks kembali gelap walau halaman bertema gelap */
+.bg-surface,
+.bg-warn-bg,
+.bg-danger-bg,
+.bg-accent-soft,
+.bg-field {
+  color: var(--card-fg);
+}
+.bg-surface .text-muted,
+.bg-field .text-muted {
+  color: var(--card-muted);
+}
+.bg-danger-bg { color: var(--danger); }
+.text-brand { color: var(--page-fg); }
+.bg-surface .text-brand { color: var(--card-fg); }
+
+/* Tombol di luar kartu pada latar gelap */
+a.bg-brand, button.bg-brand { background: var(--accent); color: #fff; }
+.bg-surface a.bg-brand, .bg-surface button.bg-brand { background: var(--brand); }
+button.border-2.border-line, a.border-2.border-line { color: var(--page-fg); }
+.bg-surface button.border-2.border-line, .bg-surface a.border-2.border-line { color: var(--card-fg); }
+
+.skel { background: var(--skel); }
+
+/* Garis kemajuan tipis di atas layar saat berpindah halaman */
+@keyframes navbar {
+  from { width: 0; }
+  to { width: 88%; }
+}
+.navbar { animation: navbar 10s cubic-bezier(0.1, 0.6, 0.2, 1) forwards; }
+
 /* Isian formulir */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
 select,
@@ -84,6 +139,7 @@ textarea {
   border-width: 1px !important;
   border-color: var(--line) !important;
   border-radius: 0.75rem !important;
+  color: var(--card-fg) !important;
 }
 input:not([type="checkbox"]):not([type="radio"]):focus,
 select:focus,
@@ -102,7 +158,13 @@ a.border-2 {
 button.border-2.border-line,
 a.border-2.border-line {
   border-width: 1px;
+  background: var(--chip);
+  border-color: transparent;
+}
+.bg-surface button.border-2.border-line,
+.bg-surface a.border-2.border-line {
   background: var(--surface);
+  border-color: var(--line);
 }
 
 /* Lencana status */
@@ -118,7 +180,7 @@ table tr.bg-background {
   background: transparent;
 }
 table th {
-  color: var(--muted);
+  color: var(--card-muted);
   font-weight: 600;
   font-size: 0.85rem;
 }
@@ -131,5 +193,5 @@ table th {
 @media print {
   aside, header.app-top, .no-print { display: none !important; }
   main { padding: 0 !important; }
-  body { background: #fff; }
+  body { background: #fff; color: #111114; }
 }
