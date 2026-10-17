@@ -52,7 +52,7 @@ export default async function InvoicePage() {
                 <td className={td}>{r.nick}</td><td className={td}>{r.cow}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(r.amount)}</td>
                 <td className={td}><Pill status={r.status} /></td>
-                <td className={td}>{canExport ? <a href={r.xls} className="font-semibold underline">Excel</a> : ""}</td>
+                <td className={td}>{canExport ? <span className="space-x-3"><a href={`${r.xls}?format=pdf`} className="font-semibold underline">PDF</a><a href={r.xls} className="font-semibold underline">Excel</a></span> : ""}</td>
                 <td className={td}>{r.pay}</td>
               </tr>
             ))}

@@ -28,7 +28,7 @@ export default async function ProformaPage() {
                 <td className={`${td} text-right tabular-nums`}>{rp(o.discount)}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(o.total - o.discount)}</td>
                 <td className={td}><Pill status={o.status} /></td>
-                <td className={td}>{canExport ? <a href={`/qurban/export/proforma/${o.id}`} className="font-semibold underline">Excel</a> : ""}</td>
+                <td className={td}>{canExport ? <span className="space-x-3"><a href={`/qurban/export/proforma/${o.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/proforma/${o.id}`} className="font-semibold underline">Excel</a></span> : ""}</td>
               </tr>
             ))}
           </tbody>

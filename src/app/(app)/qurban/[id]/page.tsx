@@ -121,7 +121,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
                           <td className={`${td} text-right tabular-nums`}>{rp(b.days * b.rate)}</td><td className={td}>{tgl(b.due_date)}</td>
                           <td className={td}><Pill status={b.status} /></td>
                           <td className={`${td} space-y-2`}>
-                            {canExport && <a href={`/qurban/export/bill/${b.id}`} className="font-semibold underline">Unduh Excel</a>}
+                            {canExport && <span className="space-x-3"><a href={`/qurban/export/bill/${b.id}?format=pdf`} className="font-semibold underline">PDF</a><a href={`/qurban/export/bill/${b.id}`} className="font-semibold underline">Excel</a></span>}
                             {b.status === "ISSUED" && session.can("qurban", "edit") && (
                               <QForm action={markBillPaid.bind(null, b.id)} label="Tandai lunas" />
                             )}
@@ -168,8 +168,10 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
       {full && o.status !== "CANCELLED" && (
         <Card title="Dokumen">
           <div className="flex flex-wrap gap-3">
-            {canExport && <a href={`/qurban/export/proforma/${id}`} className={dl}>Unduh Proforma (Excel)</a>}
-            {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}`} className={dl}>Unduh Invoice (Excel)</a>}
+            {canExport && <a href={`/qurban/export/proforma/${id}?format=pdf`} className={dl}>Unduh Proforma (PDF)</a>}
+            {canExport && <a href={`/qurban/export/proforma/${id}`} className={dl}>Proforma (Excel)</a>}
+            {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}?format=pdf`} className={dl}>Unduh Invoice (PDF)</a>}
+            {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}`} className={dl}>Invoice (Excel)</a>}
             {o.status === "PAID" && <Link href={`/qurban/sp/${id}`} className={dl}>Surat Perjanjian</Link>}
             {o.status === "PAID" && <Link href="/qurban/pilihan" className={dl}>Pilihan Pemilik</Link>}
           </div>
