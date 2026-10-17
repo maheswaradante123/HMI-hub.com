@@ -112,3 +112,19 @@ begin
   -- Purchasing kini boleh melihat Invoice (matriks Owner), sehingga harga customer ikut terlihat.
   raise notice 'SEMUA PENGUJIAN PHASE 8-10 LULUS';
 end $$;
+
+do $$
+declare
+  mkt constant text := '00000000-0000-0000-0000-000000000002';
+  prd constant text := '00000000-0000-0000-0000-000000000005';
+  v_u uuid; v_a uuid; v_b uuid;
+begin
+  select id into v_u from public.units limit 1;
+  perform pg_temp.u(mkt);
+  v_a := public.ro_quick_product('Tenderloin Baru', v_u, null);
+  v_b := public.ro_quick_product('tenderloin baru', v_u, null);
+  assert v_a = v_b, 'nama sama tidak membuat produk ganda';
+  assert (select code from public.products where id = v_a) = 'TENDERLOIN-BARU', 'kode otomatis';
+  perform pg_temp.u(prd);
+  assert pg_temp.err(format('select public.ro_quick_product(%L, %L, null)', 'X Produk', v_u)) = '42501', 'produksi tidak boleh';
+end $$;

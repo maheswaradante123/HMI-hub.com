@@ -74,3 +74,19 @@ export async function closePr(prId: string, _prev: DocActionState, formData: For
   revalidatePath(`/purchase-request/${prId}`);
   redirect(`/purchase-request/${prId}?ok=ditutup`);
 }
+
+export type QuickProductResult = { error?: string; product?: { id: string; code: string; name: string; unit: string } };
+
+export async function quickProduct(name: string, unitId: string, categoryId: string): Promise<QuickProductResult> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("ro", "create")) return { error: "Anda tidak memiliki izin untuk menambah produk." };
+  if (!UUID.test(unitId)) return { error: "Pilih satuan terlebih dahulu." };
+  if (categoryId && !UUID.test(categoryId)) return { error: "Kategori tidak valid." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ro_quick_product", { p_name: name, p_unit_id: unitId, p_category_id: categoryId || null });
+  if (error) return { error: dbMessage(error) };
+  const { data: p } = await supabase.from("products").select("id, code, name, units(name)").eq("id", data as string).maybeSingle();
+  if (!p) return { error: "Produk belum bisa dibaca. Muat ulang halaman." };
+  return { product: { id: p.id, code: p.code, name: p.name, unit: (p.units as unknown as { name: string } | null)?.name ?? "" } };
+}

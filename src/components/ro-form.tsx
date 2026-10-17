@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
-import { saveDoc, type DocFormState } from "@/app/(app)/d/actions";
+import { quickProduct, saveDoc, type DocFormState } from "@/app/(app)/d/actions";
 import { RO_DELIVERY, RO_PACK, RO_PAYMENT } from "@/lib/docs/config";
 import { parseQty } from "@/lib/docs/parse";
 import { parseMoney } from "@/lib/pricing/schema";
@@ -25,10 +25,13 @@ function addDays(iso: string, n: number) {
 }
 const suggestEst = (send: string, pay: string) => (!send ? "" : pay === "Tempo" ? addDays(send, 30) : send);
 
-export function RoForm({ id, initial, customers, products, createdBy, number, cancelHref }: {
-  id: string; initial: RoValues; customers: RoCustomer[]; products: RoProduct[]; createdBy: string; number: string; cancelHref: string;
+export function RoForm({ id, initial, customers, products: productList, units, categories, createdBy, number, cancelHref }: {
+  id: string; initial: RoValues; customers: RoCustomer[]; products: RoProduct[]; units: { id: string; name: string }[]; categories: { id: string; name: string }[]; createdBy: string; number: string; cancelHref: string;
 }) {
   const [state, action, pending] = useActionState<DocFormState, FormData>(saveDoc.bind(null, "ro", id), {});
+  const [extra, setExtra] = useState<RoProduct[]>([]);
+  const products = useMemo(() => [...productList, ...extra], [productList, extra]);
+  const [adding, setAdding] = useState<{ row: number; unit: string; cat: string; err: string; busy: boolean } | null>(null);
   const restored = useMemo<{ header: Row; items: Row[] } | null>(() => {
     if (!state.payload) return null;
     try { const p = JSON.parse(state.payload); return { header: p.header ?? {}, items: p.children?.items ?? [] }; } catch { return null; }
@@ -56,6 +59,17 @@ export function RoForm({ id, initial, customers, products, createdBy, number, ca
     const t = text.trim().toLowerCase();
     const hit = products.find((p) => `${p.code} - ${p.name}`.toLowerCase() === t || p.name.toLowerCase() === t);
     setItem(i, { _text: text, product_id: hit?.id ?? "" });
+  };
+
+  const addProduct = async () => {
+    if (!adding) return;
+    const name = (items[adding.row]?._text ?? "").trim();
+    setAdding({ ...adding, busy: true, err: "" });
+    const res = await quickProduct(name, adding.unit, adding.cat);
+    if (res.error || !res.product) { setAdding({ ...adding, busy: false, err: res.error ?? "Gagal menambah produk." }); return; }
+    setExtra((x) => [...x, res.product!]);
+    setItem(adding.row, { product_id: res.product.id, _text: res.product.name });
+    setAdding(null);
   };
 
   const amount = (r: Row) => {
@@ -126,7 +140,25 @@ export function RoForm({ id, initial, customers, products, createdBy, number, ca
                     <td className="py-1 pr-2 pt-4 text-muted">{i + 1}</td>
                     <td className="py-1 pr-2">
                       <input list="ro-products" aria-label={`Nama produk ${i + 1}`} className={inp} placeholder="Ketik atau pilih produk" value={r._text ?? ""} onChange={(e) => typeProduct(i, e.target.value)} />
-                      {r._text && !r.product_id && <p className="mt-1 text-sm text-danger">Belum ada di daftar produk. Pilih dari saran atau tambahkan di Master Data › Produk.</p>}
+                      {r._text && !r.product_id && <p className="mt-1 text-sm text-danger">Belum ada di daftar produk. Pilih dari saran atau tambahkan sebagai produk baru.</p>}
+                      {r._text && !r.product_id && adding?.row !== i && (
+                        <button type="button" onClick={() => setAdding({ row: i, unit: "", cat: "", err: "", busy: false })} className="mt-1 text-sm font-semibold text-brand underline">+ Tambah “{r._text.trim()}” sebagai produk baru</button>
+                      )}
+                      {adding?.row === i && !r.product_id && (
+                        <div className="mt-2 space-y-2 rounded-md border border-line bg-background p-3">
+                          <select aria-label="Satuan produk baru" className={inp} value={adding.unit} onChange={(e) => setAdding({ ...adding, unit: e.target.value })}>
+                            <option value="">Pilih satuan *</option>{units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          </select>
+                          <select aria-label="Kategori produk baru" className={inp} value={adding.cat} onChange={(e) => setAdding({ ...adding, cat: e.target.value })}>
+                            <option value="">Kategori (opsional)</option>{categories.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          </select>
+                          {adding.err && <p className="text-sm text-danger">{adding.err}</p>}
+                          <div className="flex gap-2">
+                            <button type="button" disabled={adding.busy} onClick={addProduct} className="rounded-md bg-brand px-4 py-2 font-semibold text-white disabled:opacity-60">{adding.busy ? "Menyimpan..." : "Simpan produk"}</button>
+                            <button type="button" onClick={() => setAdding(null)} className="rounded-md border-2 border-line px-4 py-2 font-semibold">Batal</button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="py-1 pr-2"><input aria-label={`Qty ${i + 1}`} className={inp} inputMode="decimal" value={r.qty ?? ""} onChange={(e) => setItem(i, { qty: e.target.value })} /></td>
                     <td className="py-1 pr-2 pt-4 text-lg">{unitOf(r)}</td>
