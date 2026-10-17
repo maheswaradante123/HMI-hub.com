@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
+import { RoForm } from "@/components/ro-form";
+import { loadRoLists } from "@/lib/docs/ro-lists";
 import { loadDocRefs } from "@/lib/docs/refs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,6 +42,15 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
     const rows = ((doc[c.table] as Record<string, unknown>[] | undefined) ?? []).slice().sort((a, b) => Number(a.line_no) - Number(b.line_no));
     return [c.key, rows.map((r) => Object.fromEntries(c.fields.map((f) => [f.name, f.kind === "money" || f.kind === "qty" ? (f.blankAs0 && Number(r[f.name]) === 0 ? "" : fmtNum(r[f.name], f.kind === "money")) : String(r[f.name] ?? "")])))];
   }));
+  if (slug === "ro") {
+    const lists = await loadRoLists(supabase);
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah RO {String(doc.doc_number)}</h1>
+        <RoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} {...lists} createdBy={session.fullName} number={String(doc.doc_number)} cancelHref={`/d/ro/${id}`} />
+      </div>
+    );
+  }
   const keep = [...Object.values(header), ...Object.values(children).flat().flatMap((r) => Object.values(r))];
   const refs = await loadDocRefs(supabase, [...cfg.header, ...cfg.children.flatMap((c) => c.fields)], keep);
 

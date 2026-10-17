@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,8 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
+import { RoForm } from "@/components/ro-form";
+import { loadRoLists } from "@/lib/docs/ro-lists";
 import { todayJakarta } from "@/lib/pricing/data";
 
 export default async function NewDocPage({
@@ -29,6 +32,19 @@ export default async function NewDocPage({
 
   const header = Object.fromEntries(cfg.header.map((f) => [f.name, pre.header[f.name] ?? (f.today ? todayJakarta() : "")]));
   const children = Object.fromEntries(cfg.children.map((c) => [c.key, pre.children[c.key] ?? (c.required ? [Object.fromEntries(c.fields.map((f) => [f.name, ""]))] : [])]));
+
+  if (slug === "ro") {
+    const lists = await loadRoLists(supabase);
+    const items = (pre.children.items ?? []) as Record<string, string>[];
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/ro" className="underline">Order / RO</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Request Order Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Nomor dibuat otomatis: RO-KODE CUSTOMER-URUT-BULAN-TAHUN.</p>
+        <RoForm id="" initial={{ header: header as Record<string, string>, items }} {...lists} createdBy={session.fullName} number="Otomatis saat disimpan" cancelHref="/d/ro" />
+      </div>
+    );
+  }
 
   return (
     <div>

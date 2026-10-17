@@ -4,6 +4,9 @@ const f = (name: string, label: string, kind: Field["kind"], extra: Partial<Fiel
 const ref = (name: string, label: string, r: Field["ref"], extra: Partial<Field> = {}): Field => f(name, label, "ref", { ref: r, ...extra });
 const c = (label: string, path: string, kind?: Col["kind"]): Col => ({ label, path, kind });
 
+export const RO_PAYMENT = ["Tempo", "Transfer", "Cash", "QRIS"];
+export const RO_DELIVERY = ["Delivery", "Pick Up di Toko"];
+export const RO_PACK = ["Vacuum 1 Kg", "Vacuum 4 Kg", "Tray + Wrap", "Wrap + Vacuum 4 Kg"];
 const notes = f("notes", "Catatan", "textarea");
 const productRow = ref("product_id", "Produk", "products", { required: true });
 const qtyRow = f("qty", "Jumlah", "qty", { required: true });
@@ -14,14 +17,18 @@ export const CONFIGS: Record<string, DocConfig> = {
     intro: "Pesanan dari customer. Harga otomatis memakai harga Horeka customer, atau harga toko jika customer tidak punya harga khusus.",
     table: "request_orders", select: "*, customers(name)",
     columns: [c("Nomor", "doc_number"), c("Tanggal", "order_date", "date"), c("Customer", "customers.name"), c("Kirim", "delivery_date", "date"), c("Total", "total_amount", "money"), c("Status", "status", "status")],
-    header: [ref("customer_id", "Customer", "customers", { required: true }), f("order_date", "Tanggal order", "date", { required: true, today: true }), f("delivery_date", "Tanggal kirim", "date"), notes],
-    summary: [c("Customer", "customers.name"), c("Tanggal order", "order_date", "date"), c("Tanggal kirim", "delivery_date", "date"), c("Total", "total_amount", "money"), c("Catatan", "notes")],
+    header: [ref("customer_id", "Customer", "customers", { required: true }), f("order_date", "Tanggal order", "date", { required: true, today: true }), f("delivery_date", "Tanggal kirim", "date"), notes,
+      f("orderer_name", "Nama pemesan", "text"), f("phone", "Nomor telepon", "text"), f("delivery_address", "Alamat pengiriman", "textarea"), f("delivery_time", "Waktu pengiriman", "text"),
+      f("payment_method", "Metode pembayaran", "select", { options: RO_PAYMENT.map((v) => ({ value: v, label: v })) }), f("est_pay_date", "Estimasi tanggal dibayar", "date"),
+      f("delivery_method", "Metode pengiriman", "select", { options: RO_DELIVERY.map((v) => ({ value: v, label: v })) })],
+    summary: [c("Customer", "customers.name"), c("Nama pemesan", "orderer_name"), c("Telepon", "phone"), c("Tanggal order", "order_date", "date"), c("Tanggal kirim", "delivery_date", "date"), c("Waktu kirim", "delivery_time"), c("Alamat pengiriman", "delivery_address"), c("Metode pengiriman", "delivery_method"), c("Metode bayar", "payment_method"), c("Estimasi dibayar", "est_pay_date", "date"), c("Total", "total_amount", "money"), c("Catatan", "notes")],
     children: [{
       key: "items", title: "Barang", table: "ro_items", fk: "ro_id", required: true,
       select: "*, products(code, name, units(name))",
       hint: "Kosongkan harga agar terisi otomatis.",
-      fields: [productRow, qtyRow, f("unit_price", "Harga satuan", "money", { blankAs0: true }), f("notes", "Catatan", "text")],
-      columns: [c("Produk", "products.name"), c("Jumlah", "qty", "qty"), c("Satuan", "products.units.name"), c("Harga", "unit_price", "money")],
+      fields: [productRow, qtyRow, f("unit_price", "Harga satuan", "money", { blankAs0: true }), f("notes", "Catatan", "text"),
+        f("cut_type", "Jenis potongan", "text"), f("packaging", "Jenis pengemasan", "select", { options: RO_PACK.map((v) => ({ value: v, label: v })) })],
+      columns: [c("Produk", "products.name"), c("Jumlah", "qty", "qty"), c("Satuan", "products.units.name"), c("Jenis potongan", "cut_type"), c("Pengemasan", "packaging"), c("Harga", "unit_price", "money")],
       total: { qty: "qty", price: "unit_price", label: "Perkiraan total" },
     }],
     statuses: ["DRAFT", "CONFIRMED", "COMPLETED", "CANCELLED"], prefill: [],

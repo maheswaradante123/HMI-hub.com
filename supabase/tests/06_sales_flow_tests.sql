@@ -43,12 +43,15 @@ begin
 
   -- RO oleh Marketing
   perform pg_temp.u(mkt);
-  v_ro := public.save_doc('RO', null, jsonb_build_object('customer_id', v_hotel, 'delivery_date', current_date + 2),
+  v_ro := public.save_doc('RO', null, jsonb_build_object('customer_id', v_hotel, 'delivery_date', current_date + 2, 'orderer_name', 'Budi', 'payment_method', 'Tempo', 'delivery_method', 'Delivery', 'delivery_time', '08:30'),
      jsonb_build_object('items', jsonb_build_array(
-        jsonb_build_object('product_id', v_top, 'qty', 12.5, 'unit_price', 0),
+        jsonb_build_object('product_id', v_top, 'qty', 12.5, 'unit_price', 0, 'cut_type', 'Slice 2 mm', 'packaging', 'Vacuum 1 Kg'),
         jsonb_build_object('product_id', v_sk, 'qty', 4, 'unit_price', 90000))));
   select doc_number, total_amount into v_no, v_n from public.request_orders where id = v_ro;
-  assert v_no ~ '^RO-[0-9]{4}-[0-9]{4}$', 'nomor RO';
+  assert v_no ~ '^RO-[A-Z0-9-]+-[0-9]{3}-[IVX]+-[0-9]{2}$', 'nomor RO: ' || v_no;
+  assert (select orderer_name || payment_method from public.request_orders where id = v_ro) = 'BudiTempo', 'kolom baru RO tersimpan';
+  assert (select packaging from public.ro_items where ro_id = v_ro and cut_type = 'Slice 2 mm') = 'Vacuum 1 Kg', 'kolom baru item RO';
+  assert pg_temp.err(format('select public.save_doc(''RO'', null, jsonb_build_object(''customer_id'', %L, ''payment_method'', ''Bitcoin''), jsonb_build_object(''items'', jsonb_build_array(jsonb_build_object(''product_id'', %L, ''qty'', 1))))', v_hotel, v_top)) is not null, 'metode bayar tidak valid ditolak';
   assert v_n = 12.5 * 135000 + 4 * 90000, 'total RO memakai harga Horeka otomatis, dapat ' || v_n;
   assert pg_temp.err(format('select public.save_doc(''RO'',null,%L::jsonb,''{"items":[{"product_id":"%s","qty":0}]}'')', jsonb_build_object('customer_id', v_hotel), v_top)) is not null, 'qty 0 ditolak';
   assert pg_temp.err(format('select public.doc_change_status(''PROD'',%L,''SUBMITTED'')', v_ro)) = 'P0002', 'jenis dokumen salah';
