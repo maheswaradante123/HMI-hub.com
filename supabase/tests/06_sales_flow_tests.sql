@@ -63,6 +63,8 @@ begin
   v_po := public.save_doc('PROD', null, jsonb_build_object('ro_id', v_ro, 'needed_date', current_date + 1),
      jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 12.5), jsonb_build_object('product_id', v_sk, 'qty', 4))));
   perform public.doc_change_status('PROD', v_po, 'SUBMITTED');
+  assert (select doc_number from public.production_orders where id = v_po) ~ '^PROD-[A-Z0-9-]+-[0-9]{3}-[IVX]+-[0-9]{2}$', 'nomor PROD dari RO';
+  assert pg_temp.err(format('select public.save_doc(''PROD'',null,jsonb_build_object(''ro_id'',%L),jsonb_build_object(''items'',jsonb_build_array(jsonb_build_object(''product_id'',%L,''qty'',1))))', v_ro, v_top)) = '22023', 'satu RO satu PO aktif';
   assert pg_temp.err(format('select public.doc_change_status(''PROD'',%L,''APPROVED'')', v_po)) = '42501', 'marketing tidak boleh menyetujui PO';
   perform pg_temp.u(prd);
   assert pg_temp.err(format('select public.save_doc(''PL'',null,jsonb_build_object(''po_id'',%L,''customer_id'',%L,''warehouse_id'',%L),''{}'')', v_po, v_hotel, v_wh)) = '22023', 'PO belum disetujui';

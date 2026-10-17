@@ -16,7 +16,7 @@ export function getPath(row: unknown, path: string): unknown {
 
 export const fmtRupiah = (n: number) => idr.format(n);
 export const fmtQty = (n: number) => num.format(n);
-export const fmtDate = (d: string) =>
+export const fmtDate = (d: string) => !d ? "" :
   new Date(d.length === 10 ? `${d}T00:00:00+07:00` : d).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
 export const fmtDateTime = (d: string) =>
   new Date(d).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });

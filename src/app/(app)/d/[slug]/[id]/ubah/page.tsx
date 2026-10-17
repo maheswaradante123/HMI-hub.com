@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
+import { PoForm } from "@/components/po-form";
 import { RoForm } from "@/components/ro-form";
-import { loadRoLists } from "@/lib/docs/ro-lists";
+import { loadPoRos, loadRoLists } from "@/lib/docs/ro-lists";
 import { loadDocRefs } from "@/lib/docs/refs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,6 +49,15 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah RO {String(doc.doc_number)}</h1>
         <RoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} {...lists} createdBy={session.fullName} number={String(doc.doc_number)} cancelHref={`/d/ro/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "prod") {
+    const [ros, lists] = await Promise.all([loadPoRos(supabase, String(doc.ro_id ?? "")), loadRoLists(supabase)]);
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
+        <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
       </div>
     );
   }

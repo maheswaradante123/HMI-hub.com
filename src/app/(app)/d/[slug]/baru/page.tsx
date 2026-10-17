@@ -7,8 +7,10 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
+import { PoForm } from "@/components/po-form";
 import { RoForm } from "@/components/ro-form";
-import { loadRoLists } from "@/lib/docs/ro-lists";
+import { loadPoRos, loadRoLists } from "@/lib/docs/ro-lists";
+import { fmtDate } from "@/lib/docs/format";
 import { todayJakarta } from "@/lib/pricing/data";
 
 export default async function NewDocPage({
@@ -42,6 +44,24 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Request Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Nomor dibuat otomatis: RO-KODE CUSTOMER-URUT-BULAN-TAHUN.</p>
         <RoForm id="" initial={{ header: header as Record<string, string>, items }} {...lists} createdBy={session.fullName} number="Otomatis saat disimpan" cancelHref="/d/ro" />
+      </div>
+    );
+  }
+
+  if (slug === "prod") {
+    const [ros, lists] = await Promise.all([loadPoRos(supabase), loadRoLists(supabase)]);
+    const ro = ros.find((r) => r.id === pre.header.ro_id);
+    const today = todayJakarta();
+    const initial = {
+      header: { ro_id: ro?.id ?? "", order_date: today, needed_date: ro?.sendDate ?? "", delivery_address: ro?.address ?? "", send_note: ro ? `${fmtDate(ro.sendDate)} ${ro.sendTime}`.trim() : "", pic: "", cow_codes: "", notes: "" } as Record<string, string>,
+      items: (ro?.items ?? []).map((i) => ({ product_id: i.product_id, ro_product_id: i.product_id, qty: i.qty, cut_type: i.cut, packaging: i.pack, notes: "" })),
+    };
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/prod" className="underline">Production Order</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Production Order Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
+        <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
       </div>
     );
   }
