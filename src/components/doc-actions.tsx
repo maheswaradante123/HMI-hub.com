@@ -44,7 +44,7 @@ export function PrintButton() {
 }
 
 export function StatusBadgeDoc({ status, label, style }: { status: string; label: string; style: string }) {
-  return <span data-status={status} className={`inline-block rounded px-2.5 py-1 text-base font-semibold ${style}`}>{label}</span>;
+  return <span data-status={status} className={`inline-block rounded-full px-3 py-0.5 text-sm font-semibold ${style}`}>{label}</span>;
 }
 
 export function ClosePrButton({ prId }: { prId: string }) {

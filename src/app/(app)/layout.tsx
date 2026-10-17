@@ -6,7 +6,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="md:flex">
       <Sidebar session={session} />
-      <main className="min-w-0 flex-1 p-6 md:p-10">{children}</main>
+      <main className="min-w-0 flex-1 px-4 pb-10 pt-6 md:px-8 md:pt-8">{children}</main>
     </div>
   );
 }

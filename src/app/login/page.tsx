@@ -13,8 +13,16 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-      <h1 className="text-3xl font-bold">HMI Internal System</h1>
-      <p className="mb-8 mt-1 text-muted">PT Harmoni Mitra Inovindo</p>
+      <div
+        className="mb-6 flex items-center gap-3 rounded-2xl px-5 py-5 text-white"
+        style={{ background: "linear-gradient(135deg,#c2410c 0%,#e8590c 55%,#f59e0b 100%)" }}
+      >
+        <span className="grid h-11 w-11 place-items-center rounded-lg bg-black/25 text-xl font-bold">H</span>
+        <div className="leading-tight">
+          <h1 className="text-2xl font-bold">HMI Hub</h1>
+          <p className="text-sm opacity-90">PT Harmoni Mitra Inovindo</p>
+        </div>
+      </div>
       {error === "akses" && (
         <p role="alert" className="mb-5 rounded-md bg-warn-bg px-4 py-3">
           Akun ini belum aktif atau belum memiliki role. Hubungi Owner, atau masuk dengan akun lain.

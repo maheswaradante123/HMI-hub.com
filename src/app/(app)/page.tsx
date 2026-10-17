@@ -27,29 +27,42 @@ export default async function DashboardPage() {
   ];
   const shown = cards.filter((c) => s[c.key] !== undefined);
 
+  const tgl = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date());
+  const nama = session.fullName.split(" ")[0];
+
   return (
     <div className="max-w-5xl">
-      <h1 className="text-3xl font-bold">Selamat datang, {session.fullName}</h1>
-      <p className="mt-1 text-muted">Masuk sebagai {session.roleName}</p>
+      <h1 className="text-3xl font-bold">Hi, {nama}</h1>
+      <p className="mt-1 text-muted">
+        {session.roleName} · {tgl}
+      </p>
       {!allowed ? (
-        <p className="mt-8 rounded-lg border border-line bg-surface p-6">Role Anda belum memiliki akses ke Dashboard. Gunakan menu di sebelah kiri.</p>
+        <p className="mt-6 rounded-lg border border-line bg-surface p-6">Role Anda belum memiliki akses ke Dashboard. Gunakan menu di sebelah kiri.</p>
       ) : shown.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-line bg-surface p-6">Belum ada ringkasan untuk role Anda. Gunakan menu di sebelah kiri.</p>
+        <p className="mt-6 rounded-lg border border-line bg-surface p-6">Belum ada ringkasan untuk role Anda. Gunakan menu di sebelah kiri.</p>
       ) : (
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((c) => {
-            const v = Number(s[c.key]);
-            const warn = c.warn?.(v);
-            return (
-              <li key={c.key}>
-                <Link href={c.href} className={`block h-full rounded-lg border-2 p-5 hover:bg-background ${warn ? "border-amber-500 bg-warn-bg" : "border-line bg-surface"}`}>
-                  <p className="text-muted">{c.label}</p>
-                  <p className="mt-1 text-3xl font-bold tabular-nums">{c.money ? fmtRupiah(v) : v}</p>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <section className="mt-6 rounded-lg border border-line bg-surface p-6">
+          <h2 className="text-xl font-bold">Ringkasan</h2>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((c) => {
+              const v = Number(s[c.key]);
+              const warn = c.warn?.(v);
+              return (
+                <li key={c.key}>
+                  <Link
+                    href={c.href}
+                    className={`block h-full rounded-xl border p-4 transition hover:border-foreground ${
+                      warn ? "border-accent bg-accent-soft" : "border-line bg-surface"
+                    }`}
+                  >
+                    <p className="text-sm text-muted">{c.label}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums">{c.money ? fmtRupiah(v) : v}</p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
     </div>
   );

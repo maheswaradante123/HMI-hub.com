@@ -113,7 +113,7 @@ export default async function PriceHistoryPage({
                       </>
                     )}
                     <td className="px-4 py-3">
-                      <span className={`inline-block rounded px-2.5 py-1 text-base font-semibold ${st.cls}`}>{st.label}</span>
+                      <span className={`inline-block rounded-full px-3 py-0.5 text-sm font-semibold ${st.cls}`}>{st.label}</span>
                       {r.voided_at && r.void_reason && <p className="mt-1 text-base">Alasan: {r.void_reason}</p>}
                     </td>
                     <td className="px-4 py-3">

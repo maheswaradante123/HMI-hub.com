@@ -1,16 +1,27 @@
 @import "tailwindcss";
 
+/* Desain mengikuti pratinjau HMI Hub: sidebar gelap, aksen oranye,
+   kartu putih bersudut bulat, tombol utama hitam. Nama token lama
+   dipertahankan supaya semua halaman otomatis ikut berubah. */
 :root {
-  --background: #f5f6f4;
-  --foreground: #1c2321;
+  --background: #ececf0;
+  --foreground: #111114;
   --surface: #ffffff;
-  --line: #cfd6d2;
-  --muted: #55605b;
-  --brand: #1f5c4a;
-  --brand-dark: #174536;
-  --danger: #a32121;
-  --danger-bg: #fbeaea;
-  --warn-bg: #fff4d6;
+  --line: #e3e3e8;
+  --muted: #6b6b76;
+  --field: #f5f5f7;
+  --brand: #111114;
+  --brand-dark: #000000;
+  --accent: #e8590c;
+  --accent-soft: #fff1e8;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --warn-bg: #fef3c7;
+  --side: #141417;
+  --side-fg: #ececef;
+  --side-mute: #8d8d96;
+  --side-act: #26262b;
+  --side-line: #24242a;
 }
 
 @theme inline {
@@ -19,31 +30,106 @@
   --color-surface: var(--surface);
   --color-line: var(--line);
   --color-muted: var(--muted);
+  --color-field: var(--field);
   --color-brand: var(--brand);
   --color-brand-dark: var(--brand-dark);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
   --color-warn-bg: var(--warn-bg);
+  --color-side: var(--side);
+  --color-side-fg: var(--side-fg);
+  --color-side-mute: var(--side-mute);
+  --color-side-act: var(--side-act);
+  --color-side-line: var(--side-line);
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+@theme {
+  --radius-md: 0.75rem;
+  --radius-lg: 1.125rem;
 }
 
 html {
-  font-size: 18px; /* sedikit lebih besar untuk staff yang lebih senior */
+  font-size: 17px; /* tetap agak besar untuk staf yang lebih senior */
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(900px 420px at 88% -6%, rgba(232, 89, 12, 0.16), transparent 62%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-inter), "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
   line-height: 1.5;
 }
 
+h1, h2, h3 {
+  letter-spacing: -0.01em;
+}
+
+/* Kartu dan pembungkus tabel: bayangan halus */
+.rounded-lg.border.bg-surface,
+.rounded-lg.border-2.bg-surface {
+  box-shadow: 0 1px 2px rgba(17, 17, 20, 0.04), 0 8px 24px -12px rgba(17, 17, 20, 0.12);
+  border-color: var(--line);
+}
+
+/* Isian formulir */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  background: var(--field) !important;
+  border-width: 1px !important;
+  border-color: var(--line) !important;
+  border-radius: 0.75rem !important;
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  background: #fff !important;
+  border-color: var(--foreground) !important;
+}
+
+/* Tombol: bentuk pil seperti pratinjau */
+button.bg-brand,
+a.bg-brand,
+button.border-2,
+a.border-2 {
+  border-radius: 999px;
+}
+button.border-2.border-line,
+a.border-2.border-line {
+  border-width: 1px;
+  background: var(--surface);
+}
+
+/* Lencana status */
+span.rounded.inline-block,
+span.rounded.bg-amber-200 {
+  border-radius: 999px;
+  font-size: 0.82rem;
+  padding: 0.12rem 0.7rem;
+}
+
+table thead tr,
+table tr.bg-background {
+  background: transparent;
+}
+table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 :focus-visible {
-  outline: 3px solid #1d6fd1;
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
 @media print {
-  aside, .no-print { display: none !important; }
+  aside, header.app-top, .no-print { display: none !important; }
   main { padding: 0 !important; }
   body { background: #fff; }
 }
