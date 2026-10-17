@@ -164,6 +164,18 @@ delete from public.role_permissions rp using public.roles r, public.permissions 
  where rp.role_id=r.id and rp.permission_id=p.id and r.code<>'OWNER' and p.action='approve' and p.module='purchase_request';
 
 
+-- Qurban Cerdas: izin awal (sama dengan migrasi 0012; aman dijalankan ulang).
+-- Role belum ada saat migrasi dijalankan pada database baru, jadi diulang di sini.
+create or replace function pg_temp.gq(p_role text, p_module text, p_actions text[]) returns void language sql as $f$
+  insert into public.role_permissions (role_id, permission_id) select r.id, p.id from public.roles r, public.permissions p
+   where r.code = p_role and p.module = p_module and p.action = any(p_actions) on conflict do nothing;
+$f$;
+select pg_temp.gq('MARKETING','qurban','{view,create,edit,export}');
+select pg_temp.gq('MARKETING','qc_report','{view}');
+select pg_temp.gq('ACCOUNTING','qurban','{view,edit,export}');
+select pg_temp.gq('ACCOUNTING','qc_report','{view}');
+select pg_temp.gq('PRODUKSI','qc_report','{view,create}');
+
 -- ===============================================================
 -- Seed Phase 4: master data dummy
 -- ===============================================================

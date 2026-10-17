@@ -10,5 +10,5 @@ run() { echo "== $1"; psql -q -v ON_ERROR_STOP=1 "$TEST_DATABASE_URL" -f "$1"; }
 run supabase/tests/00_mock_supabase.sql
 for f in supabase/migrations/*.sql; do run "$f"; done
 run supabase/seed.sql
-for f in supabase/tests/0[1-9]_*.sql; do run "$f"; done
+for f in supabase/tests/0[1-9]_*.sql supabase/tests/[1-9][0-9]_*.sql; do run "$f"; done
 echo "Semua pengujian database selesai."
