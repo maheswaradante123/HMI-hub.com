@@ -43,6 +43,17 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: "Qurban Cerdas",
+    items: [
+      { slug: "qurban-pesanan", label: "Master Pesanan", module: "qurban", href: "/qurban" },
+      { slug: "qurban-proforma", label: "Proforma", module: "qurban", href: "/qurban/proforma" },
+      { slug: "qurban-invoice", label: "Invoice dan Tagihan", module: "qurban", href: "/qurban/invoice" },
+      { slug: "qurban-qc", label: "QC Report", module: "qc_report", href: "/qurban/qc" },
+      { slug: "qurban-sp", label: "Surat Perjanjian", module: "qurban", href: "/qurban/sp" },
+      { slug: "qurban-pilihan", label: "Pilihan Pemilik", module: "qurban", href: "/qurban/pilihan" },
+    ],
+  },
+  {
     title: "Master Data",
     items: [
       { slug: "produk", label: "Produk", module: "product", href: "/data/produk" },

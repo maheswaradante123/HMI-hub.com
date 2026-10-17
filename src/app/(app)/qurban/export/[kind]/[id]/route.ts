@@ -3,11 +3,8 @@ import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getBuyer, getOrder, listBills, type Qc } from "@/lib/qurban/data";
 import { billDoc, invoiceDoc, proformaDoc, qcDoc, spDoc } from "@/lib/qurban/docs";
-// @ts-expect-error pembuat dokumen berupa modul .mjs tanpa tipe
 import { buatInvoiceXlsx } from "@/lib/export/invoice-xlsx.mjs";
-// @ts-expect-error pembuat dokumen berupa modul .mjs tanpa tipe
 import { buatQcXlsx } from "@/lib/export/qc-xlsx.mjs";
-// @ts-expect-error pembuat dokumen berupa modul .mjs tanpa tipe
 import { buatSpJb, buatSpPl } from "@/lib/export/sp-docx.mjs";
 
 export const runtime = "nodejs";

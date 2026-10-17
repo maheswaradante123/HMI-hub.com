@@ -11,6 +11,7 @@ const ICON: Record<string, string> = {
   Beranda: "M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10",
   Operasional: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8",
   Purchasing: "M3 4h2l2.4 11h10.2L20 7H6M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z",
+  "Qurban Cerdas": "M5 20V9l7-5 7 5v11M9 20v-6h6v6M3 20h18",
   Sales: "M3 12l9-9h8v8l-9 9-8-8zM15 7.5h.01",
   Accounting: "M6 3h9l4 4v14H6V3zM15 3v4h4M9 12h7M9 16h7",
   "Master Data": "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3",
@@ -34,6 +35,8 @@ function isActive(pathname: string, href: string) {
 
 export function SidebarNav({ groups, showDashboard }: { groups: NavGroupData[]; showDashboard: boolean }) {
   const pathname = usePathname();
+  // Menu aktif = alamat paling panjang yang cocok, supaya "/qurban" tidak ikut menyala di "/qurban/proforma".
+  const best = groups.flatMap((g) => g.items).filter((i) => isActive(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -60,7 +63,7 @@ export function SidebarNav({ groups, showDashboard }: { groups: NavGroupData[]; 
         </Link>
       )}
       {groups.map((g) => {
-        const hasActive = g.items.some((i) => isActive(pathname, i.href));
+        const hasActive = g.items.some((i) => i.href === best);
         const open = closed[g.title] === undefined ? true : !closed[g.title];
         return (
           <div key={g.title} className="mt-1">
@@ -81,7 +84,7 @@ export function SidebarNav({ groups, showDashboard }: { groups: NavGroupData[]; 
             {open && (
               <ul className="ml-[1.35rem] border-l border-side-line pl-2">
                 {g.items.map((i) => {
-                  const on = isActive(pathname, i.href);
+                  const on = i.href === best;
                   return (
                     <li key={i.slug}>
                       <Link
