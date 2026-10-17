@@ -15,27 +15,30 @@ export type Session = {
 // yang dipakai kebijakan RLS.
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Token diperiksa secara lokal (cepat). Keputusan akses sebenarnya tetap
+  // di database: RLS dan my_permissions() memakai auth.uid() dari token yang sama.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+  if (!userId) return null;
 
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("full_name, is_active, roles(name, is_active)")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Dua query berjalan bersamaan, bukan berurutan.
+  const [{ data: profile }, { data: perms }] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("full_name, is_active, roles(name, is_active)")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase.rpc("my_permissions"),
+  ]);
 
   const role = Array.isArray(profile?.roles) ? profile?.roles[0] : profile?.roles;
   if (!profile || !profile.is_active || !role?.is_active) return null;
-
-  const { data: perms } = await supabase.rpc("my_permissions");
   const granted = new Set(
     (perms ?? []).map((p: { module: string; action: string }) => `${p.module}:${p.action}`),
   );
 
   return {
-    userId: user.id,
+    userId,
     fullName: profile.full_name,
     roleName: role.name,
     can: (module, action) => granted.has(`${module}:${action}`),

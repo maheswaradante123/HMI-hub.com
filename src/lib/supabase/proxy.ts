@@ -25,9 +25,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims memeriksa tanda tangan token secara lokal (tanpa memanggil server
+  // Auth di setiap halaman), jadi jauh lebih cepat dari getUser.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
   const isLogin = request.nextUrl.pathname.startsWith("/login");
 
