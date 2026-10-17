@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HMI Internal System
 
-## Getting Started
+Aplikasi internal PT Harmoni Mitra Inovindo. Stack: Next.js 16 (App Router, TypeScript), Tailwind CSS, Supabase (Postgres, Auth, Storage), Vercel.
 
-First, run the development server:
+## Status
+- Phase 3 (Authentication & Authorization): login, role, permission, route terlindungi.
+- Phase 4 (Master Data): kategori, satuan, jenis sapi/non-karkas/biaya, metode bayar, gudang, lokasi, rekening/kas, customer, supplier, produk.
+- Phase 5 (Purchase Request): form PR, alur persetujuan Owner, riwayat status, penomoran PR-2026-0001.
+- Phase 6 (Pricing Toko): harga jual/beli per produk dengan riwayat (tidak pernah ditimpa), harga beli/supplier hanya untuk izin `pricing_cost`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Phase 7 Stok: mutasi, saldo per item, batas minimum, nilai stok, Stock Opname.
+- Phase 8-10: RO dengan harga Horeka per customer, Production Order, Packing List dan Pengiriman.
+- Phase 11-12: Penimbangan Karkas, Penjualan Non-Karkas, Analisa Pembelian.
+- Phase 13-15: Invoice (pajak), CRJ, CPJ (termasuk pembayaran PR), Gaji.
+- Phase 16-18: Dashboard, Laporan CSV, Audit Log, kelola User dan Role.
+- Phase 19-20: pengujian (database, unit, CI) dan panduan deploy (docs/DEPLOY.md).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Asumsi bisnis ada di `docs/ASSUMPTIONS.md`, uji penerimaan di `docs/UAT.md`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Menjalankan di lokal
+1. Buat project Supabase, lalu jalankan migrasi `supabase/migrations/0001` sampai `0009` (atau cukup `supabase/all_migrations.sql`) lalu `supabase/seed.sql` (data dummy development; untuk produksi pakai `seed_production.sql`) di SQL Editor (atau dengan Supabase CLI).
+2. `cp .env.example .env.local` dan isi URL, anon key, service role key.
+3. `DEV_SEED_PASSWORD='...' node --env-file=.env.local scripts/seed-dev-users.mjs` untuk membuat user dummy.
+4. `npm install && npm run dev`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Keamanan
+- Izin diputuskan di database (`has_permission`, RLS). Sidebar hanya tampilan.
+- Setiap halaman memeriksa izin di server. Proxy hanya mengarahkan tamu ke /login.
+- Service role key hanya dipakai skrip lokal, tidak pernah ke browser.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Pengujian
+- Database: `scripts/db-test.sh` (migrasi, seed, tes 01 sampai 09) pada PostgreSQL kosong; CI di `.github/workflows/ci.yml`.
+- Validasi form: `npm run test:unit`.
+- Belum diuji otomatis: alur login dan simpan data lewat aplikasi terhadap Supabase sungguhan.

@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f6f4;
+  --foreground: #1c2321;
+  --surface: #ffffff;
+  --line: #cfd6d2;
+  --muted: #55605b;
+  --brand: #1f5c4a;
+  --brand-dark: #174536;
+  --danger: #a32121;
+  --danger-bg: #fbeaea;
+  --warn-bg: #fff4d6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-warn-bg: var(--warn-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 18px; /* sedikit lebih besar untuk staff yang lebih senior */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid #1d6fd1;
+  outline-offset: 2px;
+}
+
+@media print {
+  aside, .no-print { display: none !important; }
+  main { padding: 0 !important; }
+  body { background: #fff; }
 }

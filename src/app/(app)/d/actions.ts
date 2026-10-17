@@ -1,0 +1,76 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { CONFIGS } from "@/lib/docs/config";
+import { parseDoc, type Payload } from "@/lib/docs/parse";
+import { dbMessage } from "@/lib/docs/errors";
+
+export type DocFormState = { error?: string; payload?: string };
+export type DocActionState = { error?: string };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function saveDoc(slug: string, id: string, _prev: DocFormState, formData: FormData): Promise<DocFormState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  const raw = String(formData.get("payload") ?? "");
+  const cfg = CONFIGS[slug];
+  if (!cfg) return { error: "Jenis dokumen tidak dikenal.", payload: raw };
+  if (id && !UUID.test(id)) return { error: "Dokumen tidak valid.", payload: raw };
+  if (!session.can(cfg.module, id ? "edit" : "create")) {
+    return { error: "Anda tidak memiliki izin untuk menyimpan dokumen ini.", payload: raw };
+  }
+
+  let payload: Payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return { error: "Isian tidak terbaca. Muat ulang halaman lalu coba lagi.", payload: raw };
+  }
+  const parsed = parseDoc(cfg, payload);
+  if (!parsed.ok) return { error: parsed.error, payload: raw };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_doc", {
+    p_type: cfg.type,
+    p_id: id || null,
+    p_header: parsed.header,
+    p_children: parsed.children,
+  });
+  if (error) return { error: dbMessage(error), payload: raw };
+
+  revalidatePath(`/d/${slug}`);
+  redirect(`/d/${slug}/${data as string}?ok=disimpan`);
+}
+
+export async function changeDocStatus(slug: string, id: string, to: string, _prev: DocActionState, formData: FormData): Promise<DocActionState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  const cfg = CONFIGS[slug];
+  if (!cfg || !UUID.test(id)) return { error: "Dokumen tidak valid." };
+  const note = String(formData.get("note") ?? "").trim();
+  if (note.length > 500) return { error: "Catatan terlalu panjang (maksimal 500 huruf)." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("doc_change_status", { p_type: cfg.type, p_id: id, p_to: to, p_note: note || null });
+  if (error) return { error: dbMessage(error) };
+
+  revalidatePath(`/d/${slug}`);
+  revalidatePath(`/d/${slug}/${id}`);
+  redirect(`/d/${slug}/${id}?ok=status`);
+}
+
+export async function closePr(prId: string, _prev: DocActionState, formData: FormData): Promise<DocActionState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!UUID.test(prId)) return { error: "PR tidak valid." };
+  const note = String(formData.get("note") ?? "").trim();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("pr_close", { p_id: prId, p_note: note || null });
+  if (error) return { error: dbMessage(error) };
+  revalidatePath(`/purchase-request/${prId}`);
+  redirect(`/purchase-request/${prId}?ok=ditutup`);
+}
