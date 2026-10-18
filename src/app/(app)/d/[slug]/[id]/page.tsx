@@ -75,6 +75,13 @@ export default async function DocDetailPage({
           <a href={`/d/inv/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
+      {slug === "pmt" && session.can("store_income", "export") && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/pmt/${id}/export`} title={`Pemasukan Toko ${String(doc.doc_number)}`} xlsx={`/d/pmt/${id}/export`} />
+          <a href={`/d/pmt/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+          <a href={`/d/pmt/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+        </p>
+      )}
       {sp.ok && NOTICES[sp.ok] && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
 
       <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
