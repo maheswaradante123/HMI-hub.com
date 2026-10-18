@@ -16,7 +16,7 @@ export async function recordMovement(_prev: StockFormState, formData: FormData):
   const session = await getSession();
   if (!session) redirect("/login?error=akses");
   const g = (k: string) => String(formData.get(k) ?? "").trim();
-  const values = { product: g("product"), warehouse: g("warehouse"), type: g("type"), qty: g("qty"), cost: g("cost"), date: g("date"), note: g("note") };
+  const values = { product: g("product"), warehouse: g("warehouse"), type: g("type"), qty: g("qty"), lot: g("lot").toUpperCase(), cost: g("cost"), date: g("date"), note: g("note") };
 
   if (!session.can("stock", "create")) return { error: "Anda tidak memiliki izin mencatat stok.", values };
   if (!UUID.test(values.product)) return { error: "Produk belum dipilih.", values };
@@ -31,13 +31,14 @@ export async function recordMovement(_prev: StockFormState, formData: FormData):
     cost = c;
   }
   if (values.type === "IN_PURCHASE" && cost === null) return { error: "Harga beli per satuan wajib diisi untuk pembelian masuk.", values };
+  if (values.lot.length > 40) return { error: "Kode sapi terlalu panjang (maksimal 40 huruf).", values };
   if (values.date && !isRealDate(values.date)) return { error: "Tanggal tidak benar.", values };
   if ((values.type === "ADJUST_IN" || values.type === "ADJUST_OUT") && !values.note) return { error: "Penyesuaian wajib disertai alasan.", values };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("record_stock_movement", {
     p_product: values.product, p_wh: values.warehouse, p_type: values.type, p_qty: qty,
-    p_cost: values.type === "IN_PURCHASE" ? cost : null, p_note: values.note || null, p_date: values.date || null,
+    p_cost: values.type === "IN_PURCHASE" ? cost : null, p_note: values.note || null, p_date: values.date || null, p_lot: values.lot || null,
   });
   if (error) return { error: dbMessage(error), values };
 

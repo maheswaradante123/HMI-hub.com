@@ -69,6 +69,7 @@ begin
   perform public.doc_change_status('CW', v_cw, 'FINAL');
   select coalesce(sum(qty),0) into v_after from public.v_stock_balance where product_id = v_top;
   assert v_after = v_before + 20, 'stok topside bertambah 20, selisih ' || (v_after - v_before);
+  assert (select qty_in from public.v_stock_lots where product_id = v_top and lot = 'BX-001') = 20, 'stok CW tercatat atas nama kode sapi BX-001';
   assert pg_temp.err(format('select public.save_doc(''CW'',%L,''{"notes":"x"}'')', v_cw)) = '55000', 'CW final terkunci';
 
   -- daging melebihi karkas

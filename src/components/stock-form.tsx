@@ -12,11 +12,11 @@ const TYPES = [
   { v: "ADJUST_OUT", l: "Penyesuaian kurang (wajib alasan)" },
 ];
 
-export function StockForm({ products, warehouses, canCost, today, initialProduct }: {
-  products: { id: string; label: string }[]; warehouses: { id: string; name: string }[]; canCost: boolean; today: string; initialProduct: string;
+export function StockForm({ products, warehouses, lots, canCost, today, initialProduct }: {
+  products: { id: string; label: string }[]; warehouses: { id: string; name: string }[]; lots: string[]; canCost: boolean; today: string; initialProduct: string;
 }) {
   const [state, action, pending] = useActionState<StockFormState, FormData>(recordMovement, {});
-  const v = state.values ?? { product: initialProduct, warehouse: warehouses[0]?.id ?? "", type: "OPENING", qty: "", cost: "", date: today, note: "" };
+  const v = state.values ?? { product: initialProduct, warehouse: warehouses[0]?.id ?? "", type: "OPENING", qty: "", lot: "", cost: "", date: today, note: "" };
   const [type, setType] = useState(v.type);
   return (
     <form action={action} className="max-w-2xl space-y-5" noValidate>
@@ -44,6 +44,12 @@ export function StockForm({ products, warehouses, canCost, today, initialProduct
         <label htmlFor="qty" className="mb-1 block text-lg font-semibold">Jumlah <span className="text-danger">*</span></label>
         <input id="qty" name="qty" defaultValue={v.qty} inputMode="decimal" autoComplete="off" className={inputCls} />
         <p className="mt-1 text-sm text-muted">Contoh: 12,5</p>
+      </div>
+      <div>
+        <label htmlFor="lot" className="mb-1 block text-lg font-semibold">Kode sapi <span className="font-normal text-muted">(opsional)</span></label>
+        <input id="lot" name="lot" list="stock-lots" defaultValue={v.lot} autoComplete="off" maxLength={40} className={`${inputCls} uppercase`} />
+        <datalist id="stock-lots">{lots.map((l) => <option key={l} value={l} />)}</datalist>
+        <p className="mt-1 text-sm text-muted">Isi bila stok ini berasal dari, atau diambil dari, sapi tertentu. Untuk pengurangan tanpa kode sapi, jumlahnya dihitung dari sapi yang masuk lebih dulu.</p>
       </div>
       {canCost && type === "IN_PURCHASE" && (
         <div>
