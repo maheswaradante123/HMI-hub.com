@@ -15,7 +15,11 @@ const BLACK = rgb(0, 0, 0), GREEN = rgb(0.851, 0.9176, 0.8275), BAR = rgb(0.4, 0
 const COL = [70.2, 118.4, 282.9, 398.5, 525.2];
 const SIG = [70.2, 178.0, 282.9, 398.5];
 export const DIREKTUR = "Misbahudin";
-export const kgFmt = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+// Format Indonesia: koma untuk desimal, titik untuk ribuan (10 kg -> "10,000").
+export const kgFmt = (n) => {
+  const [i, f] = Math.abs(Number(n)).toFixed(3).split(".");
+  return (Number(n) < 0 ? "-" : "") + i.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + f;
+};
 
 /** d: {nomor, tanggal(iso), kepada, telepon, baris[{desc, jenis, qty, unit}], catatan, pengawas, penerima} */
 export async function buatSuratJalanPdf(d) {
