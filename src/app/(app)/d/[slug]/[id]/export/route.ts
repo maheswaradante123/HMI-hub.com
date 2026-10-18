@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { buatInvoiceXlsx } from "@/lib/export/invoice-xlsx.mjs";
+import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 // Unduhan dokumen untuk Invoice (toko). Jenis dokumen lain belum punya unduhan.
-export async function GET(_req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   if (slug !== "inv" || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
@@ -17,6 +18,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (!session.can("invoice", "view") || !session.can("invoice", "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
+  const q = new URL(req.url).searchParams;
+  const pdf = q.get("format") === "pdf";
+  const inline = q.get("inline") === "1";
   const supabase = await createClient();
   const { data: inv } = await supabase
     .from("invoices")
@@ -30,18 +34,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (Number(inv.tax_amount) > 0) baris.push({ desc: `PPN ${Number(inv.tax_rate)}%`, qty: 1, unit: "", harga: Number(inv.tax_amount) });
 
   const cust = (inv.customers as unknown as { name: string } | null)?.name ?? "";
-  const wb = await buatInvoiceXlsx({
-    varian: "toko", judul: "INVOICE", nomor: inv.doc_number, tanggal: inv.invoice_date,
+  const doc = {
+    varian: "toko" as const, judul: "INVOICE", nomor: inv.doc_number, tanggal: inv.invoice_date,
     kepada: inv.buyer_name || cust, suratJalan: inv.delivery_note_no || undefined, telepon: inv.phone || undefined,
     baris, uangMuka: Number(inv.down_payment), jatuhTempo: inv.due_date ?? inv.invoice_date, tampilTotal: false,
     bankInfo: inv.bank_info || undefined, penandatangan: inv.signer || undefined, tandaTangan: inv.use_signature,
-  });
+  };
+  const safe = inv.doc_number.replace(/[^A-Za-z0-9._-]+/g, "_");
+  if (pdf) {
+    const bytes = await buatInvoiceTokoPdf(doc);
+    return new NextResponse(bytes as BodyInit, {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safe}.pdf"`, "Cache-Control": "private, no-store" },
+    });
+  }
+  const wb = await buatInvoiceXlsx(doc);
   const buf = await wb.xlsx.writeBuffer();
   return new NextResponse(buf as BodyInit, {
-    headers: {
-      "Content-Type": XLSX,
-      "Content-Disposition": `attachment; filename="${inv.doc_number.replace(/[^A-Za-z0-9._-]+/g, "_")}.xlsx"`,
-      "Cache-Control": "private, no-store",
-    },
+    headers: { "Content-Type": XLSX, "Content-Disposition": `attachment; filename="${safe}.xlsx"`, "Cache-Control": "private, no-store" },
   });
 }

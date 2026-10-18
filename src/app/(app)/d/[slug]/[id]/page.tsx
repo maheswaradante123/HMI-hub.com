@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { DocStatusBadge } from "@/components/doc-status-badge";
 import { DocActions, PrintButton } from "@/components/doc-actions";
 import { CONFIGS } from "@/lib/docs/config";
@@ -67,7 +68,11 @@ export default async function DocDetailPage({
         <DocStatusBadge status={status} />
       </div>
       {slug === "inv" && session.can("invoice", "export") && status !== "DRAFT" && (
-        <p className="no-print mt-4"><a href={`/d/inv/${id}/export`} className="inline-block rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Unduh Excel</a></p>
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/inv/${id}/export`} title={`Invoice ${String(doc.doc_number)}`} xlsx={`/d/inv/${id}/export`} />
+          <a href={`/d/inv/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+          <a href={`/d/inv/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+        </p>
       )}
       {sp.ok && NOTICES[sp.ok] && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
 
