@@ -70,7 +70,8 @@ export const CONFIGS: Record<string, DocConfig> = {
   cw: {
     type: "CW", slug: "cw", module: "carcass_weighing", title: "Penimbangan Karkas", singular: "Penimbangan",
     intro: "Hasil potong per ekor sapi; item dan kategori diisi sendiri. Finalisasi memasukkan stok daging, tulang dan jeroan atas nama kode sapi. Penimbangan tidak membuat pembayaran (CPJ) otomatis.",
-    table: "carcass_weighings", select: "*, cow_types(name), suppliers(name), warehouses(name), cw_items(weight, products(product_categories(code)))",
+    table: "carcass_weighings", select: "*, cow_types(name), suppliers(name), warehouses(name)",
+    listSelect: "*, cow_types(name), suppliers(name), warehouses(name), cw_items(weight, products(product_categories(code)))",
     columns: [c("Nomor", "doc_number"), c("Tanggal", "weigh_date", "date"), c("Kode Sapi", "cow_number"), c("Supplier", "suppliers.name"), c("Berat Hidup", "live_weight", "qty"), c("Karkas", "carcass_weight", "qty"), c("Daging", "_meat", "qty"), c("Tulang", "_bone", "qty"), c("% Daging", "_pct", "pct"), c("Status", "status", "status")],
     derive: (r) => {
       const sum = { Daging: 0, Tulang: 0 };

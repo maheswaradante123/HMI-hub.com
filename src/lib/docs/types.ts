@@ -55,5 +55,6 @@ export type DocConfig = {
   statuses: string[];
   prefill?: string[];         // parameter query yang didukung di /baru
   extra?: "analysis";
+  listSelect?: string;        // select khusus halaman daftar (bila butuh relasi tambahan untuk kolom turunan)
   derive?: (row: Record<string, unknown>) => Record<string, unknown>; // kolom turunan untuk daftar (dibaca lewat path "_nama")
 };

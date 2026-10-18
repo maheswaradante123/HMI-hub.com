@@ -24,7 +24,7 @@ export default async function DocListPage({
   const canCreate = session.can(cfg.module, "create");
 
   const supabase = await createClient();
-  let q = supabase.from(cfg.table).select(cfg.select).is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+  let q = supabase.from(cfg.table).select(cfg.listSelect ?? cfg.select).is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
   if (cfg.filter) q = cfg.filter.op === "eq" ? q.eq(cfg.filter.column, cfg.filter.value) : q.neq(cfg.filter.column, cfg.filter.value);
   const status = sp.status && cfg.statuses.includes(sp.status) ? sp.status : "";
   if (status) q = q.eq("status", status);
