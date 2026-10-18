@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
+import { PmtForm } from "@/components/pmt-form";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
@@ -60,6 +61,18 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
         <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "pmt") {
+    const fmtS = (v: unknown) => (v === null || v === undefined ? "" : `${Number(v) < 0 ? "-" : ""}${Math.abs(Number(v)).toLocaleString("id-ID")}`);
+    const rowsOf = (key: string, cols: string[], money: string[]) => ((doc[key === "lines" ? "store_income_lines" : "store_income_receivables"] as Record<string, unknown>[] | undefined) ?? [])
+      .slice().sort((a, b) => Number(a.line_no) - Number(b.line_no))
+      .map((r) => Object.fromEntries(cols.map((c) => [c, money.includes(c) ? fmtS(r[c]) : String(r[c] ?? "")])));
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Pemasukan Toko {String(doc.doc_number)}</h1>
+        <PmtForm id={id} initial={{ header: header as Record<string, string>, lines: rowsOf("lines", ["entry_date", "description", "cash", "qris", "debit", "grab", "tf", "deposited", "proof", "invoice_id"], ["cash", "qris", "debit", "grab", "tf", "deposited"]), recv: rowsOf("recv", ["name", "amount"], ["amount"]) }} number={String(doc.doc_number)} cancelHref={`/d/pmt/${id}`} />
       </div>
     );
   }

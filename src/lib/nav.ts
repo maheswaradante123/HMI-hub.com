@@ -38,6 +38,7 @@ export const NAV: NavGroup[] = [
     items: [
       { slug: "invoice", label: "Invoice", module: "invoice", href: "/d/inv" },
       { slug: "crj", label: "CRJ (Penerimaan)", module: "crj", href: "/d/crj" },
+      { slug: "pemasukan-toko", label: "Pemasukan Toko", module: "store_income", href: "/d/pmt" },
       { slug: "cpj", label: "CPJ (Pengeluaran)", module: "cpj", href: "/d/cpj" },
       { slug: "gaji", label: "Gaji", module: "salary", href: "/d/sal" },
     ],

@@ -4,7 +4,7 @@ export type RefName =
   | "cost_types" | "payment_methods" | "accounts" | "request_orders" | "production_orders"
   | "packing_lists" | "carcass_weighings" | "invoices" | "noncarcass_sales" | "purchase_requests";
 
-export type Kind = "text" | "textarea" | "date" | "qty" | "money" | "select" | "ref";
+export type Kind = "text" | "textarea" | "date" | "qty" | "money" | "smoney" | "select" | "ref";
 
 export type Field = {
   name: string;

@@ -90,3 +90,29 @@ export async function quickProduct(name: string, unitId: string, categoryId: str
   if (!p) return { error: "Produk belum bisa dibaca. Muat ulang halaman." };
   return { product: { id: p.id, code: p.code, name: p.name, unit: (p.units as unknown as { name: string } | null)?.name ?? "" } };
 }
+
+export type PullLine = { entry_date: string; description: string; tf: number; invoice_id: string };
+export type PullResult = { error?: string; lines?: PullLine[]; recv?: { name: string; amount: number }[] };
+
+// Menarik pembayaran invoice pada periode (kolom TF Rek HMI) untuk laporan Pemasukan Toko.
+export async function pullInvoiceIncome(from: string, to: string): Promise<PullResult> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("store_income", "create") && !session.can("store_income", "edit")) return { error: "Anda tidak memiliki izin." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from) return { error: "Isi periode dengan benar dulu (tanggal akhir tidak boleh sebelum tanggal awal)." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("store_income_invoice_lines", { p_from: from, p_to: to });
+  if (error) return { error: dbMessage(error) };
+  return { lines: (data ?? []).map((r: { entry_date: string; description: string; tf: number | string; invoice_id: string }) => ({ entry_date: r.entry_date, description: r.description, tf: Number(r.tf), invoice_id: r.invoice_id })) };
+}
+
+// Piutang saat ini per pelanggan dari invoice yang belum lunas.
+export async function pullReceivables(): Promise<PullResult> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("store_income", "create") && !session.can("store_income", "edit")) return { error: "Anda tidak memiliki izin." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("store_income_receivables_now");
+  if (error) return { error: dbMessage(error) };
+  return { recv: (data ?? []).map((r: { name: string; amount: number | string }) => ({ name: r.name, amount: Number(r.amount) })) };
+}

@@ -175,4 +175,5 @@ select pg_temp.gq('MARKETING','qc_report','{view}');
 select pg_temp.gq('ACCOUNTING','qurban','{view,edit,export}');
 select pg_temp.gq('ACCOUNTING','qc_report','{view}');
 select pg_temp.gq('PRODUKSI','qc_report','{view,create}');
+select pg_temp.gq('ACCOUNTING','store_income','{view,create,edit,delete,export}');
 

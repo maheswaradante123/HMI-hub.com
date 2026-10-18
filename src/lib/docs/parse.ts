@@ -37,6 +37,13 @@ function parseField(f: Field, raw: string, where: string): { v: Value } | { erro
       if (n === "invalid" || n === null) return { error: `${where}${f.label} harus berupa angka rupiah (contoh 135.000), tidak boleh negatif.` };
       return { v: n };
     }
+    case "smoney": {
+      // Rupiah boleh negatif (mis. pengeluaran kas yang mengurangi Cash).
+      const neg = t.startsWith("-");
+      const n = parseMoney(neg ? t.slice(1).trim() : t);
+      if (n === "invalid" || n === null) return { error: `${where}${f.label} harus berupa angka rupiah (contoh 135.000 atau -50.000).` };
+      return { v: neg ? -n : n };
+    }
     case "ref":
       return UUID.test(t) ? { v: t } : { error: `${where}${f.label} belum dipilih dengan benar.` };
     case "select":

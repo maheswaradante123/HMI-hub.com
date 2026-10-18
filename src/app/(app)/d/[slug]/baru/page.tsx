@@ -7,6 +7,7 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
+import { PmtForm } from "@/components/pmt-form";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
@@ -64,6 +65,18 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
+      </div>
+    );
+  }
+
+  if (slug === "pmt") {
+    const today = todayJakarta();
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/pmt" className="underline">Pemasukan Toko</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Pemasukan Toko Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Isi periode, lalu tarik pembayaran invoice dan piutang, atau ketik manual.</p>
+        <PmtForm id="" initial={{ header: { period_from: today, period_to: today, notes: "" }, lines: [], recv: [] }} number="" cancelHref="/d/pmt" />
       </div>
     );
   }

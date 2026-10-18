@@ -9,6 +9,7 @@ import { DocActions, PrintButton } from "@/components/doc-actions";
 import { CONFIGS } from "@/lib/docs/config";
 import { cellText, fmtQty, fmtRupiah, isNumericKind, fmtDateTime } from "@/lib/docs/format";
 import type { Rule } from "@/lib/docs/rules";
+import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
 import { loadNames } from "@/lib/pr/data";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,6 +82,22 @@ export default async function DocDetailPage({
           <div key={c.path}><dt className="text-muted">{c.label}</dt><dd className="text-lg">{cellText(c, doc)}</dd></div>
         ))}
       </dl>
+
+      {slug === "pmt" && (() => {
+        const t = pmtTotals((doc.store_income_lines as Record<string, number>[]) ?? [], (doc.store_income_receivables as { amount: number }[]) ?? []);
+        const L: Record<string, string> = { cash: "Cash", qris: "QRIS", debit: "Debit", grab: "Grab", tf: "TF Rek HMI", deposited: "Disetor" };
+        return (
+          <section className="mt-6 rounded-lg border border-line bg-surface p-5" aria-labelledby="tot-pmt">
+            <h2 id="tot-pmt" className="text-2xl font-bold">Total</h2>
+            <dl className="mt-3 grid gap-x-8 gap-y-2 md:grid-cols-3">
+              {PMT_COLS.map((c) => <div key={c}><dt className="text-muted">{L[c]}</dt><dd className="text-lg font-semibold">{fmtRupiah(t[c])}</dd></div>)}
+              <div><dt className="text-muted">Uang cash yang harus disetor</dt><dd className="text-lg font-semibold">{fmtRupiah(t.mustDeposit)}</dd></div>
+              <div><dt className="text-muted">Total piutang</dt><dd className="text-lg font-semibold">{fmtRupiah(t.receivables)}</dd></div>
+              <div><dt className="text-muted">Total Pendapatan</dt><dd className="text-xl font-bold">{fmtRupiah(t.income)}</dd></div>
+            </dl>
+          </section>
+        );
+      })()}
 
       {a && (
         <section className="mt-6" aria-labelledby="hasil">

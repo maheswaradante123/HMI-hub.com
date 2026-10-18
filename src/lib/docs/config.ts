@@ -182,6 +182,27 @@ export const CONFIGS: Record<string, DocConfig> = {
     summary: [c("Penerima", "payee_name"), c("Jenis biaya", "cost_types.name"), c("Rekening/Kas", "accounts.name"), c("Metode", "payment_methods.name"), c("Tanggal", "pay_date", "date"), c("Jumlah", "amount", "money"), c("Catatan", "notes")],
     children: [], statuses: ["DRAFT", "POSTED", "VOID"], prefill: [],
   },
+  pmt: {
+    type: "PMT", slug: "pmt", module: "store_income", title: "Pemasukan Toko", singular: "Pemasukan Toko",
+    intro: "Laporan pemasukan toko per periode: Cash, QRIS, Debit, Grab, TF Rek HMI, setoran, dan piutang. Baris pembayaran invoice bisa ditarik otomatis.",
+    table: "store_income_reports", select: "*",
+    columns: [c("Nomor", "doc_number"), c("Dari", "period_from", "date"), c("Sampai", "period_to", "date"), c("Status", "status", "status")],
+    header: [f("period_from", "Periode dari", "date", { required: true }), f("period_to", "Periode sampai", "date", { required: true }), notes],
+    summary: [c("Periode dari", "period_from", "date"), c("Periode sampai", "period_to", "date"), c("Catatan", "notes")],
+    children: [
+      {
+        key: "lines", title: "Pemasukan", table: "store_income_lines", fk: "report_id", required: true, select: "*",
+        fields: [f("entry_date", "Tanggal", "date", { required: true }), f("description", "Deskripsi", "text", { required: true }), f("cash", "Cash", "smoney"), f("qris", "QRIS", "smoney"), f("debit", "Debit", "smoney"), f("grab", "Grab", "smoney"), f("tf", "TF Rek HMI", "smoney"), f("deposited", "Disetor", "smoney"), f("proof", "Bukti", "text"), ref("invoice_id", "Invoice", "invoices")],
+        columns: [c("Tanggal", "entry_date", "date"), c("Deskripsi", "description"), c("Cash", "cash", "money"), c("QRIS", "qris", "money"), c("Debit", "debit", "money"), c("Grab", "grab", "money"), c("TF Rek HMI", "tf", "money"), c("Disetor", "deposited", "money"), c("Bukti", "proof")],
+      },
+      {
+        key: "recv", title: "Piutang", table: "store_income_receivables", fk: "report_id", select: "*",
+        fields: [f("name", "Nama", "text", { required: true }), f("amount", "Jumlah", "smoney")],
+        columns: [c("Nama", "name"), c("Piutang", "amount", "money")],
+      },
+    ],
+    statuses: ["DRAFT", "FINAL", "VOID"], prefill: [],
+  },
   so: {
     type: "SO", slug: "so", module: "stock_opname", title: "Stock Opname", singular: "Opname",
     intro: "Hitung fisik stok. Setelah disetujui Owner, selisih dengan stok sistem dikoreksi otomatis dan tercatat di riwayat mutasi.",
