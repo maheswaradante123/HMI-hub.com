@@ -40,6 +40,7 @@ export const terbilangRupiah = (n) => (n === 0 ? "Nol Rupiah" : title(terbilang(
  *   varian: "toko" | "qurban", judul: "INVOICE" | "PROFORMA-INVOICE", nomor, tanggal(iso), kepada,
  *   suratJalan?, telepon?, baris: [{desc, qty, unit, harga}], diskon?, uangMuka?, jatuhTempo?(iso),
  *   catatan?: string  (qurban: kalimat setelah "Note :")
+ *   bankInfo?, penandatangan?, tandaTangan?: boolean (varian toko)
  *   tampilTotal?: boolean (proforma menampilkan baris "Total" di atas "Total Pembelanjaan")
  * }
  */
@@ -172,7 +173,8 @@ export async function buatInvoiceXlsx(data) {
     c.alignment = { horizontal: align === "right" ? "right" : "center", vertical: "middle" };
     r++;
   };
-  rekRow([["Pembayaran melalui transfer "], ["Bank Mandiri a/n. Harmoni Mitra Inovindo", true], [" 1290015674415"]], "center");
+  if (toko && data.bankInfo) rekRow([["Pembayaran melalui transfer "], [data.bankInfo, true]], "center");
+  else rekRow([["Pembayaran melalui transfer "], ["Bank Mandiri a/n. Harmoni Mitra Inovindo", true], [" 1290015674415"]], "center");
   if (!toko) rekRow([["Bank Rakyat Indonesia (BRI) a/n. Harmoni Mitra Inovindo", true], [" 117001000653562"]], "right");
 
   // --- jatuh tempo / note
@@ -196,8 +198,10 @@ export async function buatInvoiceXlsx(data) {
   // --- tanda tangan
   const sigTop = r;
   ws.getRow(r).height = toko ? 47 : 45.5; r++;
+  const ttdOk = data.tandaTangan !== false && (!data.penandatangan || data.penandatangan === "Ahmad Hunain");
   const sig = wb.addImage({ filename: path.join(ASSETS, toko ? "sig-hunain-toko.png" : "sig-hunain-inv.png"), extension: "png" });
-  if (toko) ws.addImage(sig, { tl: { col: 0.95, row: sigTop - 1 + 0.1 }, ext: { width: 67, height: 41 } });
+  if (!ttdOk) { /* tanpa tanda tangan digital */ }
+  else if (toko) ws.addImage(sig, { tl: { col: 0.95, row: sigTop - 1 + 0.1 }, ext: { width: 67, height: 41 } });
   else {
     ws.addImage(sig, { tl: { col: 0.2, row: sigTop - 1 + 0.15 }, ext: { width: 67, height: 36 } });
     if (data.judul === "INVOICE" || data.judul === "PROFORMA-INVOICE") {
@@ -213,7 +217,7 @@ export async function buatInvoiceXlsx(data) {
     r++;
   };
   cap("Direktur Keuangan", false);
-  cap("Ahmad Hunain", true);
+  cap(data.penandatangan || "Ahmad Hunain", true);
   // batang abu-abu bawah
   if (toko || data.judul === "PROFORMA-INVOICE") {
     ws.getRow(r).height = 5;

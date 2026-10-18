@@ -7,10 +7,11 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
+import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
 import { RoForm } from "@/components/ro-form";
-import { loadPlRos, loadPoRos, loadRoLists, loadWarehouses } from "@/lib/docs/ro-lists";
+import { loadInvPls, loadPlRos, loadPoRos, loadRoLists, loadTaxRate, loadWarehouses } from "@/lib/docs/ro-lists";
 import { fmtDate } from "@/lib/docs/format";
 import { todayJakarta } from "@/lib/pricing/data";
 
@@ -63,6 +64,29 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
+      </div>
+    );
+  }
+
+  if (slug === "inv") {
+    const today = todayJakarta();
+    const [pls, lists, taxRate, num] = await Promise.all([loadInvPls(supabase, pre.header.pl_id), loadRoLists(supabase), loadTaxRate(supabase), supabase.rpc("inv_next_number", { p_date: today })]);
+    const number = (num.data as string | null) ?? "";
+    const pl = pls.find((p) => p.id === pre.header.pl_id);
+    const initial = {
+      header: {
+        pl_id: pre.header.pl_id ?? "", customer_id: pre.header.customer_id ?? "", ro_id: pre.header.ro_id ?? "", invoice_date: today, due_date: "",
+        buyer_name: pl?.customer ?? "", phone: pl?.phone ?? "", delivery_note_no: pl && /^INV-(\d{3}-[IVX]+-\d{2})$/.test(number) && pl.code ? `DO-${pl.code}-${number.slice(4)}` : "",
+        down_payment: "", bank_info: "Bank Mandiri a/n. Harmoni Mitra Inovindo 1290015674415", signer: "Ahmad Hunain", use_signature: "true", notes: "",
+      } as Record<string, string>,
+      items: (pre.children.items ?? []).map((r) => ({ ...r, description: "" })),
+    };
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/inv" className="underline">Invoice</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Invoice Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Pilih Packing List: penerima, telepon dan berat terisi otomatis.</p>
+        <InvForm id="" initial={initial} pls={pls} products={lists.products} taxRate={taxRate} number={number} cancelHref="/d/inv" />
       </div>
     );
   }

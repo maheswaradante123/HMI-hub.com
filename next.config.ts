@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // Logo, tanda tangan, dan templat Word dibaca dari disk oleh pembuat dokumen.
   outputFileTracingIncludes: {
     "/qurban/export/[kind]/[id]": ["./src/lib/export/assets/**/*", "./src/lib/export/templates/**/*", "./src/lib/export/fonts/**/*"],
+    "/d/[slug]/[id]/export": ["./src/lib/export/assets/**/*", "./src/lib/export/fonts/**/*"],
   },
   serverExternalPackages: ["exceljs", "jszip"],
   turbopack: {

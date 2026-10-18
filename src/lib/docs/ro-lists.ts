@@ -60,3 +60,27 @@ export async function loadWarehouses(supabase: Awaited<ReturnType<typeof createC
   const { data } = await supabase.from("warehouses").select("id, name").eq("is_active", true).order("name");
   return (data ?? []).map((w) => ({ id: w.id, name: w.name }));
 }
+
+export type InvPl = { id: string; no: string; customerId: string; customer: string; code: string; phone: string; net: number };
+
+// Packing List yang sudah dikemas dan belum ditagih (ditambah PL milik invoice yang sedang diubah).
+export async function loadInvPls(supabase: Awaited<ReturnType<typeof createClient>>, keepId?: string): Promise<InvPl[]> {
+  const [{ data: pls }, { data: used }] = await Promise.all([
+    supabase.from("packing_lists").select("id, doc_number, customer_id, phone, status, customers(name, code), pl_items(qty)")
+      .is("deleted_at", null).in("status", ["PACKED", "DELIVERED"]).order("doc_number", { ascending: false }).limit(300),
+    supabase.from("invoices").select("pl_id").not("pl_id", "is", null).neq("status", "VOID").is("deleted_at", null),
+  ]);
+  const taken = new Set((used ?? []).map((u) => u.pl_id as string));
+  return (pls ?? []).filter((p) => !taken.has(p.id) || p.id === keepId).map((p) => {
+    const cu = p.customers as unknown as { name: string; code: string } | null;
+    return {
+      id: p.id, no: p.doc_number, customerId: p.customer_id, customer: cu?.name ?? "", code: cu?.code ?? "", phone: p.phone ?? "",
+      net: ((p.pl_items as unknown as { qty: number }[]) ?? []).reduce((s, i) => s + Number(i.qty), 0),
+    };
+  });
+}
+
+export async function loadTaxRate(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
+  const { data } = await supabase.from("tax_settings").select("rate").limit(1).maybeSingle();
+  return Number(data?.rate ?? 0);
+}

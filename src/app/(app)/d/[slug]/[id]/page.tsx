@@ -66,6 +66,9 @@ export default async function DocDetailPage({
         <h1 className="text-3xl font-bold">{String(doc.doc_number)}</h1>
         <DocStatusBadge status={status} />
       </div>
+      {slug === "inv" && session.can("invoice", "export") && status !== "DRAFT" && (
+        <p className="no-print mt-4"><a href={`/d/inv/${id}/export`} className="inline-block rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Unduh Excel</a></p>
+      )}
       {sp.ok && NOTICES[sp.ok] && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
 
       <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">

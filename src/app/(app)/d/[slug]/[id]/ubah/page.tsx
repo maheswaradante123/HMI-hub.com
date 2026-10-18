@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
+import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
 import { RoForm } from "@/components/ro-form";
-import { loadPlRos, loadPoRos, loadRoLists, loadWarehouses } from "@/lib/docs/ro-lists";
+import { loadInvPls, loadPlRos, loadPoRos, loadRoLists, loadTaxRate, loadWarehouses } from "@/lib/docs/ro-lists";
 import { loadDocRefs } from "@/lib/docs/refs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,6 +60,15 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
         <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "inv") {
+    const [pls, lists, taxRate] = await Promise.all([loadInvPls(supabase, String(doc.pl_id ?? "")), loadRoLists(supabase), loadTaxRate(supabase)]);
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Invoice {String(doc.doc_number)}</h1>
+        <InvForm id={id} initial={{ header: { ...(header as Record<string, string>), use_signature: String(doc.use_signature) }, items: children.items ?? [] }} pls={pls} products={lists.products} taxRate={taxRate} number={String(doc.doc_number)} cancelHref={`/d/inv/${id}`} />
       </div>
     );
   }
