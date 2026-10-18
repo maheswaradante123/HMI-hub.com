@@ -35,6 +35,19 @@ begin
   perform pg_temp.u(acc);
   assert pg_temp.err('select public.set_tax_rate(''PPN'', 150)') = '22023', 'tarif di atas 100';
   perform public.set_tax_rate('PPN', 11);
+  -- uang muka dihitung sebagai pembayaran saat terbit
+  declare v_dp uuid; v_dp2 uuid;
+  begin
+    v_dp := public.save_doc('INV', null, jsonb_build_object('customer_id', v_hotel, 'down_payment', 50000, 'delivery_note_no', 'DO-X-001', 'signer', 'Budi', 'use_signature', 'true'),
+       jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 1, 'unit_price', 100000, 'description', 'Daging khusus'))));
+    perform public.doc_change_status('INV', v_dp, 'ISSUED');
+    assert (select paid_amount from public.invoices where id = v_dp) = 50000 and (select status from public.invoices where id = v_dp) = 'PARTIAL', 'uang muka jadi pembayaran';
+    perform public.doc_change_status('INV', v_dp, 'VOID', 'batal');
+    v_dp2 := public.save_doc('INV', null, jsonb_build_object('customer_id', v_hotel, 'down_payment', 999999999),
+       jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 1, 'unit_price', 100000))));
+    assert pg_temp.err(format('select public.doc_change_status(''INV'',%L,''ISSUED'')', v_dp2)) = '22023', 'uang muka melebihi total ditolak';
+    assert public.inv_next_number(current_date) ~ '^INV-[0-9]{3}-[IVX]+-[0-9]{2}$', 'pratinjau nomor';
+  end;
 
   -- invoice
   perform pg_temp.u(own);
@@ -46,7 +59,7 @@ begin
         jsonb_build_object('product_id', v_top, 'qty', 12.5, 'unit_price', 0),
         jsonb_build_object('product_id', v_sk, 'qty', 4, 'unit_price', 90000))));
   select * into r from public.invoices where id = v_inv;
-  assert r.doc_number ~ '^INV-[0-9]{4}-[0-9]{4}$', 'nomor INV';
+  assert r.doc_number ~ '^INV-[0-9]{3}-[IVX]+-[0-9]{2}$', 'nomor INV: ' || r.doc_number;
   assert r.due_date = r.invoice_date + 14, 'jatuh tempo mengikuti termin customer';
   assert r.subtotal = 2047500 and r.tax_rate = 11 and r.tax_amount = 225225 and r.total = 2272725, 'total invoice, dapat ' || r.total;
   assert pg_temp.err(format('select public.save_doc(''INV'',null,jsonb_build_object(''customer_id'',%L,''pl_id'',%L),''{}'')', v_hotel, v_pl)) = '23505', 'satu invoice aktif per PL';
