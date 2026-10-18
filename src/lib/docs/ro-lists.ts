@@ -42,3 +42,21 @@ export async function loadPoRos(supabase: Awaited<ReturnType<typeof createClient
     };
   });
 }
+
+export type PlRo = { id: string; no: string; customerId: string; customer: string; phone: string };
+
+// RO yang boleh diacu Packing List (dikonfirmasi atau selesai), plus RO yang sudah tersimpan di dokumen.
+export async function loadPlRos(supabase: Awaited<ReturnType<typeof createClient>>, keepId?: string): Promise<PlRo[]> {
+  const q = supabase.from("request_orders").select("id, doc_number, customer_id, phone, customers(name)")
+    .is("deleted_at", null).order("doc_number", { ascending: false }).limit(300);
+  const { data } = keepId ? await q.or(`status.in.(CONFIRMED,COMPLETED),id.eq.${keepId}`) : await q.in("status", ["CONFIRMED", "COMPLETED"]);
+  return (data ?? []).map((r) => ({
+    id: r.id, no: r.doc_number, customerId: r.customer_id, phone: r.phone ?? "",
+    customer: (r.customers as unknown as { name: string } | null)?.name ?? "",
+  }));
+}
+
+export async function loadWarehouses(supabase: Awaited<ReturnType<typeof createClient>>): Promise<{ id: string; name: string }[]> {
+  const { data } = await supabase.from("warehouses").select("id, name").eq("is_active", true).order("name");
+  return (data ?? []).map((w) => ({ id: w.id, name: w.name }));
+}

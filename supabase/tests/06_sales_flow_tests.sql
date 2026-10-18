@@ -82,9 +82,11 @@ begin
   perform pg_temp.u(prd);
   select coalesce(sum(qty),0) into v_before from public.v_stock_balance where product_id = v_top;
   v_pl := public.save_doc('PL', null, jsonb_build_object('po_id', v_po, 'ro_id', v_ro, 'customer_id', v_hotel, 'warehouse_id', v_wh, 'driver_name', 'Budi', 'vehicle_plate', 'B 1234 XY'),
-     jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 12.5), jsonb_build_object('product_id', v_sk, 'qty', 4))));
+     jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 6.25, 'gross_weight', 6.3), jsonb_build_object('product_id', v_top, 'qty', 6.25, 'gross_weight', 6.28), jsonb_build_object('product_id', v_sk, 'qty', 4))));
   select doc_number into v_no from public.packing_lists where id = v_pl;
-  assert v_no ~ '^PL-[0-9]{4}-[0-9]{4}$', 'nomor PL';
+  assert (select count(*) from public.pl_items where pl_id = v_pl and product_id = v_top) = 2, 'satu produk boleh banyak kemasan';
+  assert pg_temp.err(format('select public.save_doc(''PL'',%L,jsonb_build_object(''customer_id'',%L,''warehouse_id'',%L),jsonb_build_object(''items'',jsonb_build_array(jsonb_build_object(''product_id'',%L,''qty'',5,''gross_weight'',4))))', v_pl, v_hotel, v_wh, v_top)) = '23514', 'gross tidak boleh lebih kecil dari net';
+  assert v_no ~ '^PL-[0-9]{3}-[IVX]+-[0-9]{2}$', 'nomor PL: ' || v_no;
   -- stok sengkel 7 cukup, tapi minta 4; naikkan jadi 50 harus gagal tanpa mengubah apa pun
   perform public.save_doc('PL', v_pl, jsonb_build_object('po_id', v_po, 'ro_id', v_ro, 'customer_id', v_hotel, 'warehouse_id', v_wh),
      jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'qty', 12.5), jsonb_build_object('product_id', v_sk, 'qty', 50))));

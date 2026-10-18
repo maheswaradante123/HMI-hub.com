@@ -47,9 +47,14 @@ export async function loadPrefill(supabase: Supa, cfg: DocConfig, sp: Record<str
       }
       const money = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       out.header = { pl_id: data.id, ro_id: s(data.ro_id), customer_id: s(data.customer_id) };
-      out.children.items = [...(data.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no).map((i) => {
-        const p = roPrice.get(i.product_id as string);
-        return { product_id: s(i.product_id), qty: s(i.qty), unit_price: p ? money(p) : "" };
+      // Satu produk bisa terdiri dari banyak kemasan: jumlahkan per produk.
+      const sums = new Map<string, number>();
+      for (const i of [...(data.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no)) {
+        sums.set(i.product_id as string, Math.round(((sums.get(i.product_id as string) ?? 0) + Number(i.qty)) * 1000) / 1000);
+      }
+      out.children.items = [...sums.entries()].map(([pid, qty]) => {
+        const p = roPrice.get(pid);
+        return { product_id: pid, qty: String(qty).replace(".", ","), unit_price: p ? money(p) : "" };
       });
     }
   } else if (cfg.type === "AP" && take("cw")) {

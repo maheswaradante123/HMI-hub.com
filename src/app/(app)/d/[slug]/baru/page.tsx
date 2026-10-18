@@ -7,9 +7,10 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
+import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
 import { RoForm } from "@/components/ro-form";
-import { loadPoRos, loadRoLists } from "@/lib/docs/ro-lists";
+import { loadPlRos, loadPoRos, loadRoLists, loadWarehouses } from "@/lib/docs/ro-lists";
 import { fmtDate } from "@/lib/docs/format";
 import { todayJakarta } from "@/lib/pricing/data";
 
@@ -62,6 +63,25 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
+      </div>
+    );
+  }
+
+  if (slug === "pl") {
+    const [ros, lists, warehouses] = await Promise.all([loadPlRos(supabase, pre.header.ro_id), loadRoLists(supabase), loadWarehouses(supabase)]);
+    const seen = new Set<string>();
+    const rows = (pre.children.items ?? []).filter((r) => r.product_id && !seen.has(r.product_id) && seen.add(r.product_id))
+      .map((r) => ({ product_id: r.product_id, qty: "", gross_weight: "", notes: "" }));
+    const initial = {
+      header: { ro_id: pre.header.ro_id ?? "", customer_id: pre.header.customer_id ?? "", po_id: pre.header.po_id ?? "", pack_date: todayJakarta(), phone: ros.find((r) => r.id === pre.header.ro_id)?.phone ?? "", warehouse_id: warehouses.length === 1 ? warehouses[0].id : "", supervisor: "", notes: "" } as Record<string, string>,
+      items: rows,
+    };
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/pl" className="underline">Packing List</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Packing List Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Isi manual per baris, atau gunakan tombol tambah / tempel dari Excel.</p>
+        <PlForm id="" initial={initial} ros={ros} products={lists.products} warehouses={warehouses} number="" cancelHref="/d/pl" />
       </div>
     );
   }
