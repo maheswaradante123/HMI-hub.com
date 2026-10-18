@@ -75,6 +75,12 @@ export default async function DocDetailPage({
           <a href={`/d/inv/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
+      {(slug === "ro" || slug === "prod") && session.can(slug === "ro" ? "ro" : "production_order", "export") && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/${slug}/${id}/export`} title={`${slug === "ro" ? "Realisasi Order" : "Production Order"} ${String(doc.doc_number)}`} />
+          <a href={`/d/${slug}/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+        </p>
+      )}
       {slug === "pmt" && session.can("store_income", "export") && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
           <PdfPreview href={`/d/pmt/${id}/export`} title={`Pemasukan Toko ${String(doc.doc_number)}`} xlsx={`/d/pmt/${id}/export`} />

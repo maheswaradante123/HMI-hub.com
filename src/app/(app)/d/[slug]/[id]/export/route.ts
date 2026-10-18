@@ -6,19 +6,21 @@ import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
+import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
+import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
 
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-// Unduhan dokumen untuk Invoice (toko) dan Pemasukan Toko. Jenis dokumen lain belum punya unduhan.
+// Unduhan dokumen untuk Invoice (toko), Pemasukan Toko, RO dan Production Order (RO dan Production Order hanya PDF). Jenis dokumen lain belum punya unduhan.
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "pmt" ? "store_income" : "invoice";
+  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -26,6 +28,51 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const pdf = q.get("format") === "pdf";
   const inline = q.get("inline") === "1";
   const supabase = await createClient();
+  const pdfHeaders = (name: string) => ({ "Content-Type": "application/pdf", "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.pdf"`, "Cache-Control": "private, no-store" });
+  if (slug === "ro") {
+    const { data: ro } = await supabase
+      .from("request_orders")
+      .select("doc_number, order_date, delivery_date, delivery_time, orderer_name, phone, delivery_address, payment_method, delivery_method, notes, created_by, customers(name), ro_items(line_no, qty, unit_price, cut_type, packaging, products(name, units(name)))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!ro) return NextResponse.json({ error: "RO tidak ditemukan." }, { status: 404 });
+    type It = { line_no: number; qty: number; unit_price: number; cut_type: string | null; packaging: string | null; products: { name: string; units: { name: string } | null } | null };
+    const items = [...((ro.ro_items as unknown as It[]) ?? [])].sort((a, b) => a.line_no - b.line_no);
+    let pembuat = "";
+    if (ro.created_by) {
+      const { data: u } = await supabase.from("user_directory").select("full_name").eq("id", ro.created_by).maybeSingle();
+      pembuat = u?.full_name ?? "";
+    }
+    const cust = (ro.customers as unknown as { name: string } | null)?.name ?? "";
+    const bytes = await buatRoPdf({
+      nomor: ro.doc_number, tanggal: ro.order_date, pemesan: ro.orderer_name || cust, alamat: ro.delivery_address ?? "", telepon: ro.phone ?? "",
+      tglKirim: ro.delivery_date, waktuKirim: ro.delivery_time ?? "",
+      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "", harga: Number(i.unit_price) })),
+      bayar: ro.payment_method ?? "", kirim: ro.delivery_method ?? "", catatan: ro.notes ?? "", pembuat, jabatan: "Marketing",
+      tandaTangan: /syifa/i.test(pembuat),
+    });
+    return new NextResponse(bytes as BodyInit, { headers: pdfHeaders(ro.doc_number) });
+  }
+  if (slug === "prod") {
+    const { data: po } = await supabase
+      .from("production_orders")
+      .select("doc_number, order_date, needed_date, send_note, delivery_address, pic, cow_codes, notes, request_orders(doc_number, order_date, delivery_date, delivery_time, phone, delivery_method, delivery_address, customers(name)), po_items(line_no, qty, cut_type, packaging, products:products!po_items_product_id_fkey(name, units(name)))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!po) return NextResponse.json({ error: "Production Order tidak ditemukan." }, { status: 404 });
+    type It = { line_no: number; qty: number; cut_type: string | null; packaging: string | null; products: { name: string; units: { name: string } | null } | null };
+    type Ro = { doc_number: string; order_date: string; delivery_date: string | null; delivery_time: string | null; phone: string | null; delivery_method: string | null; delivery_address: string | null; customers: { name: string } | null };
+    const items = [...((po.po_items as unknown as It[]) ?? [])].sort((a, b) => a.line_no - b.line_no);
+    const ro = po.request_orders as unknown as Ro | null;
+    const tglKirimRo = ro?.delivery_date ?? po.needed_date;
+    const kirimTeks = tglKirimRo ? tglId(tglKirimRo) + (ro?.delivery_time ? `, ${ro.delivery_time}` : "") : "";
+    const bytes = await buatProdPdf({
+      nomor: po.doc_number, tanggal: po.order_date, customer: ro?.customers?.name ?? "", telepon: ro?.phone ?? "",
+      leadTime: leadTime(ro?.order_date ?? po.order_date, tglKirimRo), roNomor: ro?.doc_number ?? "", tglOrder: ro?.order_date ?? po.order_date, tglKirim: kirimTeks,
+      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "" })),
+      metode: ro?.delivery_method ?? "", jadwal: po.send_note || kirimTeks, alamat: po.delivery_address || ro?.delivery_address || "",
+      pic: po.pic ?? "", kodeSapi: po.cow_codes ?? "", catatan: po.notes ?? "",
+    });
+    return new NextResponse(bytes as BodyInit, { headers: pdfHeaders(po.doc_number) });
+  }
   if (slug === "pmt") {
     const { data: rep } = await supabase
       .from("store_income_reports")
