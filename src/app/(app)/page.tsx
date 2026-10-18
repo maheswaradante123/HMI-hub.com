@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     { key: "prod_waiting", label: "Production Order menunggu persetujuan", href: "/d/prod?status=SUBMITTED", warn: (n) => n > 0 },
     { key: "low_stock", label: "Item stok menipis", href: "/stok?hanya=menipis", warn: (n) => n > 0 },
     { key: "ro_open", label: "RO terkonfirmasi (belum selesai)", href: "/d/ro?status=CONFIRMED" },
-    { key: "pl_on_the_way", label: "Pengiriman belum terkonfirmasi", href: "/pengiriman" },
+    { key: "pl_on_the_way", label: "Pengiriman belum terkonfirmasi", href: "/d/pl" },
     { key: "receivable_total", label: "Total piutang", href: "/d/inv", money: true },
     { key: "receivable_overdue", label: "Piutang lewat jatuh tempo", href: "/d/inv", money: true, warn: (n) => n > 0 },
     { key: "cash_in_month", label: "Kas masuk bulan ini", href: "/d/crj", money: true },
