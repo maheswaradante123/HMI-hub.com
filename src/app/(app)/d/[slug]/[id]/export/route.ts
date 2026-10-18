@@ -7,6 +7,7 @@ import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
+import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
 
 export const runtime = "nodejs";
@@ -15,7 +16,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 // Unduhan dokumen untuk Invoice (toko), Pemasukan Toko, RO dan Production Order (RO dan Production Order hanya PDF). Jenis dokumen lain belum punya unduhan.
-export async function GET(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ slug: string; id: string }> }) {
+  try {
+    return await handle(req, ctx);
+  } catch (e) {
+    console.error("export gagal", e);
+    return NextResponse.json({ error: "Gagal membuat dokumen: " + (e instanceof Error ? e.message : String(e)) }, { status: 500 });
+  }
+}
+
+async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
@@ -29,6 +39,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const inline = q.get("inline") === "1";
   const supabase = await createClient();
   const pdfHeaders = (name: string) => ({ "Content-Type": "application/pdf", "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.pdf"`, "Cache-Control": "private, no-store" });
+  const xlsxResponse = async (wb: { xlsx: { writeBuffer(): Promise<ArrayBuffer | Uint8Array> } }, name: string) =>
+    new NextResponse((await wb.xlsx.writeBuffer()) as BodyInit, {
+      headers: { "Content-Type": XLSX, "Content-Disposition": `attachment; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.xlsx"`, "Cache-Control": "private, no-store" },
+    });
   if (slug === "ro") {
     const { data: ro } = await supabase
       .from("request_orders")
@@ -43,14 +57,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
       pembuat = u?.full_name ?? "";
     }
     const cust = (ro.customers as unknown as { name: string } | null)?.name ?? "";
-    const bytes = await buatRoPdf({
+    const roData = {
       nomor: ro.doc_number, tanggal: ro.order_date, pemesan: ro.orderer_name || cust, alamat: ro.delivery_address ?? "", telepon: ro.phone ?? "",
       tglKirim: ro.delivery_date, waktuKirim: ro.delivery_time ?? "",
       baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "", harga: Number(i.unit_price) })),
       bayar: ro.payment_method ?? "", kirim: ro.delivery_method ?? "", catatan: ro.notes ?? "", pembuat, jabatan: "Marketing",
       tandaTangan: /syifa/i.test(pembuat),
-    });
-    return new NextResponse(bytes as BodyInit, { headers: pdfHeaders(ro.doc_number) });
+    };
+    if (!pdf) return xlsxResponse(await buatRoXlsx(roData), ro.doc_number);
+    return new NextResponse((await buatRoPdf(roData)) as BodyInit, { headers: pdfHeaders(ro.doc_number) });
   }
   if (slug === "prod") {
     const { data: po } = await supabase
@@ -64,14 +79,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     const ro = po.request_orders as unknown as Ro | null;
     const tglKirimRo = ro?.delivery_date ?? po.needed_date;
     const kirimTeks = tglKirimRo ? tglId(tglKirimRo) + (ro?.delivery_time ? `, ${ro.delivery_time}` : "") : "";
-    const bytes = await buatProdPdf({
+    const poData = {
       nomor: po.doc_number, tanggal: po.order_date, customer: ro?.customers?.name ?? "", telepon: ro?.phone ?? "",
       leadTime: leadTime(ro?.order_date ?? po.order_date, tglKirimRo), roNomor: ro?.doc_number ?? "", tglOrder: ro?.order_date ?? po.order_date, tglKirim: kirimTeks,
       baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "" })),
       metode: ro?.delivery_method ?? "", jadwal: po.send_note || kirimTeks, alamat: po.delivery_address || ro?.delivery_address || "",
       pic: po.pic ?? "", kodeSapi: po.cow_codes ?? "", catatan: po.notes ?? "",
-    });
-    return new NextResponse(bytes as BodyInit, { headers: pdfHeaders(po.doc_number) });
+    };
+    if (!pdf) return xlsxResponse(await buatProdXlsx(poData), po.doc_number);
+    return new NextResponse((await buatProdPdf(poData)) as BodyInit, { headers: pdfHeaders(po.doc_number) });
   }
   if (slug === "pmt") {
     const { data: rep } = await supabase
