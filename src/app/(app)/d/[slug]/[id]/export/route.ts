@@ -8,6 +8,9 @@ import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
 import { buatCpjPdf } from "@/lib/export/jcp-pdf.mjs";
 import { buatCpjXlsx } from "@/lib/export/jcp-xlsx.mjs";
+import { buatApPdf } from "@/lib/export/ap-pdf.mjs";
+import { buatApXlsx } from "@/lib/export/ap-xlsx.mjs";
+import { apTotals } from "@/lib/docs/ap";
 import { jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
 import { buatPackingListPdf, buatPackingListXlsx } from "@/lib/export/pl-pdf.mjs";
 import { buatSuratJalanPdf, buatSuratJalanXlsx } from "@/lib/export/do-pdf.mjs";
@@ -32,10 +35,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string; i
 
 async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt" && slug !== "jcp" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "jcp" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do" && slug !== "ap") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "jcp" ? "cpj_journal" : slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : "invoice";
+  const mod = slug === "jcp" ? "cpj_journal" : slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : slug === "ap" ? "purchase_analysis" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -157,6 +160,34 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     };
     if (pdf) return new NextResponse((await buatCpjPdf(data)) as BodyInit, { headers: pdfHeaders(data.nomor) });
     return xlsxResponse(await buatCpjXlsx(data), data.nomor);
+  }
+  if (slug === "ap") {
+    const { data: ap } = await supabase
+      .from("purchase_analyses")
+      .select("doc_number, analysis_date, top_date, supplier_invoice, total_purchase, lower_side, upper_side, manual_total_cost, suppliers(name), cow_types(code), ap_cows(carcass_weighings(carcass_weight)), ap_items(line_no, weight, unit_price, products(name, product_categories(code))), ap_nonk(line_no, name, weight, unit_price), ap_costs(line_no, amount, cost_types(name))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!ap) return NextResponse.json({ error: "Analisa tidak ditemukan." }, { status: 404 });
+    type Rel<T> = T | T[] | null;
+    const one = <T,>(v: Rel<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+    type It = { line_no: number; weight: number; unit_price: number; products: Rel<{ name: string; product_categories: Rel<{ code: string }> }> };
+    type Nk = { line_no: number; name: string; weight: number | null; unit_price: number };
+    type Cs = { line_no: number; amount: number; cost_types: Rel<{ name: string }> };
+    const items = [...((ap.ap_items as unknown as It[]) ?? [])].sort((a, b) => a.line_no - b.line_no).map((i) => {
+      const p = one(i.products);
+      return { nama: p?.name ?? "", qty: Number(i.weight), price: Number(i.unit_price), meat: one(p?.product_categories ?? null)?.code === "DAGING" };
+    });
+    const nonk = [...((ap.ap_nonk as unknown as Nk[]) ?? [])].sort((a, b) => a.line_no - b.line_no).map((n) => ({ nama: n.name, qty: n.weight === null ? null : Number(n.weight), price: Number(n.unit_price) }));
+    const biaya = [...((ap.ap_costs as unknown as Cs[]) ?? [])].sort((a, b) => a.line_no - b.line_no).map((c) => ({ nama: one(c.cost_types)?.name ?? "", amount: Number(c.amount) }));
+    const karkas = ((ap.ap_cows as unknown as { carcass_weighings: Rel<{ carcass_weight: number }> }[]) ?? []).reduce((s, c) => s + Number(one(c.carcass_weighings)?.carcass_weight ?? 0), 0);
+    const manualTotal = ap.manual_total_cost === null ? null : Number(ap.manual_total_cost);
+    const lower = ap.lower_side === null ? null : Number(ap.lower_side), upper = ap.upper_side === null ? null : Number(ap.upper_side);
+    const total = apTotals({ items, nonk, costs: biaya.map((c) => c.amount), cowPrice: Number(ap.total_purchase), manualTotal, carcass: karkas, lower, upper });
+    const apData = {
+      nomor: ap.doc_number, tanggal: ap.analysis_date, supplier: one(ap.suppliers as Rel<{ name: string }>)?.name ?? "", jenis: one(ap.cow_types as Rel<{ code: string }>)?.code ?? "",
+      top: ap.top_date, invoice: ap.supplier_invoice ?? "", harga: Number(ap.total_purchase), baris: items, nonk, biaya, karkas, lower, upper, manualTotal, total,
+    };
+    if (pdf) return new NextResponse((await buatApPdf(apData)) as BodyInit, { headers: pdfHeaders(ap.doc_number) });
+    return xlsxResponse(await buatApXlsx(apData), ap.doc_number);
   }
   if (slug === "pmt") {
     const { data: rep } = await supabase

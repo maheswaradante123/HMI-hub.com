@@ -6,6 +6,9 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
+import { ApForm } from "@/components/ap-form";
+import { loadApLists } from "@/lib/docs/ap-lists";
+import { todayJakarta } from "@/lib/pricing/data";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
@@ -62,6 +65,18 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
         <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "ap") {
+    const lists = await loadApLists(supabase, id, todayJakarta());
+    const cowIds = (children.cows ?? []).map((r) => r.cw_id).filter(Boolean);
+    const inCows = new Set(cowIds.flatMap((cid) => lists.cows.find((c) => c.id === cid)?.items.map((i) => i.product_id) ?? []));
+    const items = (children.items ?? []).map((r) => ({ product_id: r.product_id, weight: r.weight, unit_price: r.unit_price, price_source: r.price_source, linked: inCows.has(r.product_id) }));
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Analisa Pembelian {String(doc.doc_number)}</h1>
+        <ApForm id={id} initial={{ header: header as Record<string, string>, cows: cowIds, items, nonk: children.nonk ?? [], costs: children.costs ?? [] }} lists={lists} number={String(doc.doc_number)} cancelHref={`/d/ap/${id}`} />
       </div>
     );
   }

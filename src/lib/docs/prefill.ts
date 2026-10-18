@@ -63,20 +63,6 @@ export async function loadPrefill(supabase: Supa, cfg: DocConfig, sp: Record<str
       const ro = Array.isArray(data.request_orders) ? data.request_orders[0] : data.request_orders;
       out.header = { pl_id: data.id, driver_name: s(data.driver_name), vehicle_plate: s(data.vehicle_plate), delivery_address: s(ro?.delivery_address) };
     }
-  } else if (cfg.type === "AP" && take("cw")) {
-    const id = take("cw")!;
-    const [{ data: cw }, { data: prices }] = await Promise.all([
-      supabase.from("carcass_weighings").select("id, cw_items(product_id, weight, line_no)").eq("id", id).maybeSingle(),
-      supabase.from("v_current_prices").select("product_id, sell_price"),
-    ]);
-    if (cw) {
-      const price = new Map((prices ?? []).map((p) => [p.product_id as string, p.sell_price as number | null]));
-      out.header = { cw_id: id };
-      out.children.items = [...(cw.cw_items ?? [])].filter((i) => i.product_id).sort((a, b) => a.line_no - b.line_no).map((i) => {
-        const p = price.get(i.product_id as string);
-        return { product_id: s(i.product_id), weight: s(i.weight), unit_price: p != null ? String(p).replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "", price_source: p != null ? "PRICING" : "TYPED" };
-      });
-    }
   } else if (cfg.type === "NCS" && take("cw")) {
     const id = take("cw")!;
     const { data: cw } = await supabase.from("carcass_weighings").select("id, cw_items(non_carcass_type_id, weight, line_no)").eq("id", id).maybeSingle();

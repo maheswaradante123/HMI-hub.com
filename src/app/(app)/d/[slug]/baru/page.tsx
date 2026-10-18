@@ -9,6 +9,9 @@ import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
+import { ApForm } from "@/components/ap-form";
+import { loadApLists } from "@/lib/docs/ap-lists";
+import { syncApItems } from "@/lib/docs/ap";
 import { JCP_DEFAULTS } from "@/lib/docs/jcp";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
@@ -89,6 +92,29 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Cash Payment Journal Baru</h1>
         <p className="mb-6 mt-1 text-muted">Satu jurnal per minggu. Tarik item dari Purchase Request, tempel dari Excel, atau ketik manual.</p>
         <JcpForm id="" status="DRAFT" initial={{ header: { journal_date: today, initiator_name: session.fullName, ...JCP_DEFAULTS, notes: "" }, lines: prLines }} number="" cancelHref="/d/jcp" />
+      </div>
+    );
+  }
+
+  if (slug === "ap") {
+    const today = todayJakarta();
+    const lists = await loadApLists(supabase, null, today);
+    // Dari Penimbangan Karkas: ?cw=id langsung memilih sapi, mengisi supplier, jenis sapi dan jumlah item.
+    const cw = lists.cows.find((c) => c.id === sp.cw);
+    const cowIds = cw ? [cw.id] : [];
+    const initial = {
+      header: { analysis_date: today, supplier_id: cw?.supplier_id ?? "", cow_type_id: cw?.cow_type_id ?? "", top_date: "", supplier_invoice: "", total_purchase: "", lower_side: "", upper_side: "", manual_total_cost: "", notes: "" },
+      cows: cowIds,
+      items: syncApItems(cowIds, lists.cows, lists.products, []),
+      nonk: [] as Record<string, string>[],
+      costs: lists.costTypes.map((c) => ({ cost_type_id: c.id, amount: "", note: "" })),
+    };
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/ap" className="underline">Analisa Pembelian</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Analisa Pembelian Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Jumlah item ditarik dari penimbangan karkas. Harga jual, penjualan non-karkas dan biaya diketik manual.</p>
+        <ApForm id="" initial={initial} lists={lists} number="" cancelHref="/d/ap" />
       </div>
     );
   }

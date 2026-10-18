@@ -101,6 +101,13 @@ export default async function DocDetailPage({
           <a href={`/d/jcp/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
+      {slug === "ap" && session.can("purchase_analysis", "export") && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/ap/${id}/export`} title={`Analisa Pembelian ${String(doc.doc_number)}`} xlsx={`/d/ap/${id}/export`} />
+          <a href={`/d/ap/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+          <a href={`/d/ap/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+        </p>
+      )}
       {slug === "pmt" && session.can("store_income", "export") && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
           <PdfPreview href={`/d/pmt/${id}/export`} title={`Pemasukan Toko ${String(doc.doc_number)}`} xlsx={`/d/pmt/${id}/export`} />
@@ -149,12 +156,13 @@ export default async function DocDetailPage({
             {[
               ["Berat hidup", `${fmtQty(Number(a.live_weight))} kg`], ["Berat karkas", `${fmtQty(Number(a.carcass_weight))} kg`], ["Karkas dari berat hidup", `${fmtQty(Number(a.carcass_pct))}%`],
               ["Berat daging", `${fmtQty(Number(a.meat_weight))} kg`], ["Daging dari karkas", `${fmtQty(Number(a.meat_pct))}%`], ["Harga karkas per kg", fmtRupiah(Number(a.carcass_price_per_kg))],
-              ["Hasil penjualan item", fmtRupiah(Number(a.revenue))], ["Penjualan non-karkas", fmtRupiah(Number(a.noncarcass_amount))], ["Total biaya", fmtRupiah(Number(a.cost_total))],
+              ["Hasil penjualan item", fmtRupiah(Number(a.revenue))], ["Penjualan non-karkas", fmtRupiah(Number(a.noncarcass_amount))], ["Total biaya", fmtRupiah(Number(a.total_cost))],
+              ...(a.lower_side !== null ? [["Lower Side", `${fmtQty(Number(a.lower_side))} kg`]] : []), ...(a.upper_side !== null ? [["Upper Side", `${fmtQty(Number(a.upper_side))} kg`]] : []),
             ].map(([k, v]) => (
               <div key={k} className="rounded-lg border border-line bg-surface p-4"><dt className="text-muted">{k}</dt><dd className="text-xl font-semibold tabular-nums">{v}</dd></div>
             ))}
             <div className={`rounded-lg border-2 p-4 md:col-span-3 ${Number(a.profit) < 0 ? "border-danger bg-danger-bg" : "border-brand bg-surface"}`}>
-              <dt className="text-muted">Laba (hasil item + non-karkas − pembelian − biaya)</dt>
+              <dt className="text-muted">Keuntungan (hasil item + non-karkas − total biaya)</dt>
               <dd className="text-2xl font-bold tabular-nums">{fmtRupiah(Number(a.profit))}</dd>
             </div>
           </dl>

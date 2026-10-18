@@ -14,7 +14,7 @@ declare
   acc constant text := '00000000-0000-0000-0000-000000000004';
   prd constant text := '00000000-0000-0000-0000-000000000005';
   v_cow uuid; v_wh uuid; v_sup uuid; v_top uuid; v_sk uuid; v_jeroan uuid; v_jagal uuid; v_potong uuid;
-  v_cw uuid; v_cw2 uuid; v_ap uuid; v_ncs uuid; v_before numeric; v_after numeric; v_no text; r record; v_cnt int;
+  v_cw uuid; v_cw2 uuid; v_cw3 uuid; v_cw4 uuid; v_ap uuid; v_ap2 uuid; v_ncs uuid; v_before numeric; v_after numeric; v_no text; r record; v_cnt int;
 begin
   select id into v_cow from public.cow_types where code='BX';
   select id into v_wh from public.warehouses where code='GD-TOKO';
@@ -40,7 +40,7 @@ begin
   assert pg_temp.err(format('select public.save_doc(''CW'',%L,''{"notes":"x"}'',%L::jsonb)', v_cw, '{"items":[{"product_id":null,"non_carcass_type_id":null,"weight":1}]}')) = '23514', 'item harus produk atau non-karkas';
   -- analisa sebelum final ditolak
   perform pg_temp.u(pur);
-  assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''cw_id'',%L,''total_purchase'',1000),''{}'')', v_cw)) = '22023', 'analisa butuh penimbangan final';
+  assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''supplier_id'',%L,''cow_type_id'',%L,''total_purchase'',1000),jsonb_build_object(''cows'',jsonb_build_array(jsonb_build_object(''cw_id'',%L))))', v_sup, v_cow, v_cw)) = '22023', 'analisa butuh penimbangan final';
   perform pg_temp.u(mkt);
   assert pg_temp.err(format('select public.doc_change_status(''CW'',%L,''FINAL'')', v_cw)) = '42501', 'marketing tidak boleh finalkan';
   perform pg_temp.u(prd);
@@ -64,20 +64,55 @@ begin
   assert (select total_amount from public.noncarcass_sales where id = v_ncs) = 1200000, 'total non-karkas 1.2jt';
   perform public.doc_change_status('NCS', v_ncs, 'CONFIRMED');
 
-  -- analisa
+  -- analisa: supplier, jenis sapi, banyak sapi, non-karkas diketik, Total Biaya otomatis atau manual
   perform pg_temp.u(pur);
-  v_ap := public.save_doc('AP', null, jsonb_build_object('cw_id', v_cw, 'total_purchase', 25000000),
-     jsonb_build_object('items', jsonb_build_array(
+  assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''cow_type_id'',%L,''total_purchase'',1),jsonb_build_object(''cows'',jsonb_build_array(jsonb_build_object(''cw_id'',%L))))', v_cow, v_cw)) = '22023', 'supplier wajib';
+  v_ap := public.save_doc('AP', null, jsonb_build_object('supplier_id', v_sup, 'cow_type_id', v_cow, 'analysis_date', date '2026-04-21', 'total_purchase', 25000000, 'top_date', date '2026-05-21', 'supplier_invoice', 'INV-77'),
+     jsonb_build_object('cows', jsonb_build_array(jsonb_build_object('cw_id', v_cw)),
+       'items', jsonb_build_array(
         jsonb_build_object('product_id', v_top, 'weight', 20, 'unit_price', 140000, 'price_source', 'PRICING'),
         jsonb_build_object('product_id', v_sk, 'weight', 160, 'unit_price', 100000, 'price_source', 'TYPED')),
+       'nonk', jsonb_build_array(jsonb_build_object('name', 'Jeroan', 'weight', 30, 'unit_price', 40000), jsonb_build_object('name', 'Babat', 'weight', null, 'unit_price', 20000)),
        'costs', jsonb_build_array(jsonb_build_object('cost_type_id', v_potong, 'amount', 500000))));
+  select doc_number into v_no from public.purchase_analyses where id = v_ap;
+  assert v_no ~ '^[0-9]{3}-[A-Z0-9]+-BX-IV-26$', 'nomor AP format 001-SUPPLIER-BX-IV-26, dapat ' || v_no;
   select * into r from public.v_purchase_analysis where id = v_ap;
   assert r.carcass_pct = 54.35, 'karkas % = 250/460, dapat ' || r.carcass_pct;
-  assert r.meat_pct = 72.00, 'daging % = 180/250, dapat ' || r.meat_pct;
+  assert r.meat_weight = 180 and r.meat_pct = 72.00, 'daging % = 180/250, dapat ' || r.meat_pct;
   assert r.carcass_price_per_kg = 100000, 'harga karkas per kg';
   assert r.revenue = 18800000 and r.noncarcass_amount = 1200000 and r.cost_total = 500000, 'angka analisa';
-  assert r.profit = 18800000 + 1200000 - 25000000 - 500000, 'laba analisa, dapat ' || r.profit;
-  assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''cw_id'',%L,''total_purchase'',1),''{}'')', v_cw)) = '23505', 'satu analisa aktif per penimbangan';
+  assert r.total_cost = 25500000, 'total biaya = harga sapi + operasional, dapat ' || r.total_cost;
+  assert r.profit = 18800000 + 1200000 - 25500000, 'laba analisa, dapat ' || r.profit;
+  -- Total Biaya manual menggantikan penjumlahan otomatis
+  perform public.save_doc('AP', v_ap, jsonb_build_object('supplier_id', v_sup, 'cow_type_id', v_cow, 'analysis_date', date '2026-04-21', 'total_purchase', 25000000, 'manual_total_cost', 26000000, 'lower_side', 100, 'upper_side', 80));
+  select * into r from public.v_purchase_analysis where id = v_ap;
+  assert r.total_cost = 26000000 and r.profit = 20000000 - 26000000, 'total biaya manual, dapat ' || r.total_cost || ' / ' || r.profit;
+  assert r.lower_side = 100 and r.upper_side = 80, 'lower dan upper side tersimpan';
+  -- nomor berikutnya naik satu pada tahun yang sama
+  assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''supplier_id'',%L,''cow_type_id'',%L,''total_purchase'',1),jsonb_build_object(''cows'',jsonb_build_array(jsonb_build_object(''cw_id'',%L))))', v_sup, v_cow, v_cw)) = '23505', 'satu sapi hanya di satu analisa aktif';
+  -- banyak sapi dalam satu analisa
+  perform pg_temp.u(prd);
+  v_cw3 := public.save_doc('CW', null, jsonb_build_object('cow_type_id', v_cow, 'cow_number', 'BX-003', 'supplier_id', v_sup, 'warehouse_id', v_wh, 'live_weight', 400, 'carcass_weight', 200),
+    jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'weight', 50))));
+  v_cw4 := public.save_doc('CW', null, jsonb_build_object('cow_type_id', v_cow, 'cow_number', 'BX-004', 'supplier_id', v_sup, 'warehouse_id', v_wh, 'live_weight', 300, 'carcass_weight', 150),
+    jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'weight', 30))));
+  perform public.doc_change_status('CW', v_cw3, 'FINAL'); perform public.doc_change_status('CW', v_cw4, 'FINAL');
+  perform pg_temp.u(pur);
+  v_ap2 := public.save_doc('AP', null, jsonb_build_object('supplier_id', v_sup, 'cow_type_id', v_cow, 'analysis_date', date '2026-05-02', 'total_purchase', 35000000),
+     jsonb_build_object('cows', jsonb_build_array(jsonb_build_object('cw_id', v_cw3), jsonb_build_object('cw_id', v_cw4)),
+       'items', jsonb_build_array(jsonb_build_object('product_id', v_top, 'weight', 80, 'unit_price', 140000, 'price_source', 'TYPED'))));
+  select * into r from public.v_purchase_analysis where id = v_ap2;
+  assert r.carcass_weight = 350 and r.live_weight = 700 and r.cow_number = 'BX-003, BX-004', 'dua sapi dijumlah, dapat ' || r.carcass_weight || ' ' || r.cow_number;
+  assert r.carcass_price_per_kg = 100000 and r.meat_pct = round(80.0 / 350 * 100, 2), 'harga karkas dan daging % dua sapi';
+  select doc_number into v_no from public.purchase_analyses where id = v_ap2;
+  assert v_no ~ '^[0-9]{3}-[A-Z0-9]+-BX-V-26$', 'nomor bulan romawi V, dapat ' || v_no;
+  assert (select substr(doc_number, 1, 3)::int from public.purchase_analyses where id = v_ap2) = (select substr(doc_number, 1, 3)::int from public.purchase_analyses where id = v_ap) + 1, 'urut naik per tahun';
+  assert public.ap_next_seq('26') = (select max(substr(doc_number, 1, 3)::int) from public.purchase_analyses where doc_number ~ '-26$') + 1, 'ap_next_seq = urut berikutnya';
+  assert public.ap_next_seq('99') = 1, 'tahun baru mulai dari 1';
+  -- analisa final butuh sapi dan item; analisa batal membebaskan sapi
+  assert pg_temp.err(format('select public.doc_change_status(''AP'',%L,''FINAL'')', (select public.save_doc('AP', null, jsonb_build_object('supplier_id', v_sup, 'cow_type_id', v_cow, 'total_purchase', 1), '{}'::jsonb)))) = '22023', 'final butuh sapi';
+  perform public.doc_change_status('AP', v_ap2, 'VOID', 'salah input');
+  perform public.save_doc('AP', null, jsonb_build_object('supplier_id', v_sup, 'cow_type_id', v_cow, 'total_purchase', 1), jsonb_build_object('cows', jsonb_build_array(jsonb_build_object('cw_id', v_cw3))));
 
   -- perubahan harga master setelah analisa tidak mengubah angka analisa (harga disimpan)
   perform pg_temp.su();
@@ -90,6 +125,7 @@ begin
 
   -- visibilitas
   perform pg_temp.u(prd);
+  assert public.ap_next_seq('26') is null, 'produksi tidak boleh membaca urutan analisa';
   select count(*) into v_cnt from public.v_purchase_analysis; assert v_cnt = 0, 'produksi tidak melihat analisa';
   perform pg_temp.u(mkt);
   select count(*) into v_cnt from public.carcass_weighings; assert v_cnt = 0, 'marketing tidak melihat penimbangan';
