@@ -10,6 +10,7 @@ export const NAV: NavGroup[] = [
       { slug: "ro", label: "Order / RO", module: "ro", href: "/d/ro" },
       { slug: "production-order", label: "Production Order", module: "production_order", href: "/d/prod" },
       { slug: "packing-list", label: "Packing List", module: "packing_list", href: "/d/pl" },
+      { slug: "delivery-order", label: "Delivery Order", module: "delivery_order", href: "/d/do" },
       { slug: "pengiriman", label: "Pengiriman", module: "delivery", href: "/pengiriman" },
       { slug: "stok", label: "Stok", module: "stock", href: "/stok" },
       { slug: "stock-opname", label: "Stock Opname", module: "stock_opname", href: "/d/so" },

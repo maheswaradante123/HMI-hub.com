@@ -6,7 +6,8 @@ import { Forbidden } from "@/components/forbidden";
 import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { DocStatusBadge } from "@/components/doc-status-badge";
 import { DocActions, PrintButton } from "@/components/doc-actions";
-import { CONFIGS } from "@/lib/docs/config";
+import { CONFIGS, editableIn } from "@/lib/docs/config";
+import { DocFlow, DoSteps } from "@/components/doc-flow";
 import { cellText, fmtQty, fmtRupiah, isNumericKind, fmtDateTime } from "@/lib/docs/format";
 import type { Rule } from "@/lib/docs/rules";
 import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
@@ -21,7 +22,10 @@ const NEXT: Record<string, { when: string[]; label: string; href: (id: string) =
     { when: ["CONFIRMED"], label: "Buat Packing List", href: (id) => `/d/pl/baru?ro=${id}`, module: "packing_list" },
   ],
   prod: [{ when: ["APPROVED"], label: "Buat Packing List", href: (id) => `/d/pl/baru?po=${id}`, module: "packing_list" }],
-  pl: [{ when: ["PACKED", "DELIVERED"], label: "Buat Invoice", href: (id) => `/d/inv/baru?pl=${id}`, module: "invoice" }],
+  pl: [
+    { when: ["PACKED", "DELIVERED"], label: "Buat Invoice", href: (id) => `/d/inv/baru?pl=${id}`, module: "invoice" },
+    { when: ["PACKED", "DELIVERED"], label: "Buat Surat Jalan", href: (id) => `/d/do/baru?pl=${id}`, module: "delivery_order" },
+  ],
   cw: [
     { when: ["FINAL"], label: "Buat Analisa Pembelian", href: (id) => `/d/ap/baru?cw=${id}`, module: "purchase_analysis" },
     { when: ["FINAL"], label: "Jual non-karkas", href: (id) => `/d/ncs/baru?cw=${id}`, module: "noncarcass_sale" },
@@ -57,7 +61,7 @@ export default async function DocDetailPage({
   ]);
   const allowed = ((rules ?? []) as Rule[]).filter((r) => session.can(r.module, r.action));
   const names = await loadNames(supabase, (history ?? []).map((h) => h.changed_by as string));
-  const canEdit = status === "DRAFT" && session.can(cfg.module, "edit");
+  const canEdit = editableIn(slug, status) && session.can(cfg.module, "edit");
   const next = (NEXT[slug] ?? []).filter((n) => n.when.includes(status) && session.can(n.module, "create"));
   const a = analysis.data as Record<string, number | string> | null;
 
@@ -73,6 +77,12 @@ export default async function DocDetailPage({
           <PdfPreview href={`/d/inv/${id}/export`} title={`Invoice ${String(doc.doc_number)}`} xlsx={`/d/inv/${id}/export`} />
           <a href={`/d/inv/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
           <a href={`/d/inv/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+        </p>
+      )}
+      {slug === "do" && session.can("delivery_order", "export") && status !== "DRAFT" && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/do/${id}/export`} title={`Surat Jalan ${String(doc.doc_number)}`} />
+          <a href={`/d/do/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
         </p>
       )}
       {(slug === "ro" || slug === "prod" || slug === "pl") && session.can(slug === "ro" ? "ro" : slug === "prod" ? "production_order" : "packing_list", "export") && (
@@ -96,6 +106,16 @@ export default async function DocDetailPage({
           <div key={c.path}><dt className="text-muted">{c.label}</dt><dd className="text-lg">{cellText(c, doc)}</dd></div>
         ))}
       </dl>
+
+      {slug === "do" && (
+        <>
+          <DoSteps status={status} />
+          {typeof doc.scan_url === "string" && doc.scan_url && (
+            <p className="no-print mt-4"><a href={doc.scan_url} target="_blank" rel="noopener noreferrer" className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Buka scan surat jalan (Google Drive)</a></p>
+          )}
+        </>
+      )}
+      {(slug === "do" || slug === "pl") && <DocFlow supabase={supabase} plId={slug === "pl" ? id : String(doc.pl_id)} current={slug} />}
 
       {slug === "pmt" && (() => {
         const t = pmtTotals((doc.store_income_lines as Record<string, number>[]) ?? [], (doc.store_income_receivables as { amount: number }[]) ?? []);

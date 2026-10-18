@@ -19,9 +19,10 @@ const pad2 = (n) => String(n).padStart(2, "0");
 export const DIREKTUR = "Misbahudin";
 
 /** d: {nomor, tanggal, kepada, telepon, baris[{jenis, net, gross}], catatan, pengawas, penerima} */
-export async function buatPackingListPdf(d) {
+export async function buatPackingListPdf(d, opt = {}) {
   const rows = d.baris;
-  const dy = (Math.max(rows.length, 1) - BASE_ROWS) * ROW;
+  const OFF = d.alamat ? 13.2 : 0; // baris alamat tambahan (surat jalan) menggeser tabel ke bawah
+  const dy = (Math.max(rows.length, 1) - BASE_ROWS) * ROW + OFF;
   const H = Math.max(H0, H0 + dy);
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
@@ -40,31 +41,33 @@ export async function buatPackingListPdf(d) {
   const gs = pdf.context.register(pdf.context.obj({ Type: "ExtGState", BM: "Multiply" }));
   page.node.setExtGState(PDFName.of("GSM"), gs);
 
-  T("Packing List", 20.7, 75.6, 32.58, bold);
+  T(opt.judul ?? "Packing List", 20.7, 75.6, 32.58, bold);
   T("No.", 20.7, 129.1, SZ); T(":", 74.6, 129.1, SZ); T(d.nomor, 80.0, 129.1, SZ, bold, SKEW);
   T("Tanggal", 20.7, 142.9, SZ); T(":", 74.6, 142.9, SZ); T(tglPl(d.tanggal), 81.4, 142.9, SZ);
   T("Kepada", 20.7, 156.1, SZ); T(":", 74.6, 156.1, SZ); T(fit(d.kepada, 270, SZ), 81.4, 156.1, SZ);
-  if (d.telepon) { T("No. Telepon", 365.9, 156.1, SZ); T(": " + d.telepon, 419.8, 156.1, SZ); }
+  const right = opt.kanan ?? (d.telepon ? [["No. Telepon", d.telepon]] : []);
+  right.slice(-3).forEach(([l, v], i, arr) => { const top = 156.1 - (arr.length - 1 - i) * 13.2; T(l, 365.9, top, SZ); T(": " + fit(v, 150, SZ), 419.8, top, SZ); });
+  if (d.alamat) { T("Alamat", 20.7, 169.3, SZ); T(":", 74.6, 169.3, SZ); T(fit(d.alamat, 400, SZ), 81.4, 169.3, SZ); }
 
-  rect(18.2, 501.8, 176.0, 205.5, GREEN);
-  hline(18.2, 501.8, 176.4); hline(18.2, 501.8, 205.2);
-  ["No Item", "Jenis Item", "Net Weight (Kg)", "Gross Weight (Kg)"].forEach((h, i) => center(h, COL[i], COL[i + 1], 189.9, SZ, bold));
+  rect(18.2, 501.8, 176.0 + OFF, 205.5 + OFF, GREEN);
+  hline(18.2, 501.8, 176.4 + OFF); hline(18.2, 501.8, 205.2 + OFF);
+  ["No Item", "Jenis Item", "Net Weight (Kg)", "Gross Weight (Kg)"].forEach((h, i) => center(h, COL[i], COL[i + 1], 189.9 + OFF, SZ, bold));
   const n = Math.max(rows.length, 1);
   rows.forEach((r, i) => {
-    const top = 213.7 + i * ROW;
+    const top = 213.7 + OFF + i * ROW;
     center(pad2(i + 1), COL[0], COL[1], top, SZ);
     center(fit(r.jenis, COL[2] - COL[1] - 6, SZ), COL[1], COL[2], top, SZ);
     center(kg(r.net), COL[2], COL[3], top, SZ);
     center(kg(r.gross), COL[3], COL[4], top, SZ);
   });
-  for (let i = 0; i < n; i++) hline(18.2, 501.8, 224.0 + i * ROW);
-  const totTop = 205.2 + n * ROW; // garis atas baris total
+  for (let i = 0; i < n; i++) hline(18.2, 501.8, 224.0 + OFF + i * ROW);
+  const totTop = 205.2 + OFF + n * ROW; // garis atas baris total
   const bot = totTop + ROW;
   hline(18.2, 501.8, bot - 0.3);
   const tNet = rows.reduce((s, r) => s + Number(r.net || 0), 0), tGross = rows.reduce((s, r) => s + Number(r.gross || 0), 0);
   center("Total", COL[0], COL[2], 627.2 + dy, SZ, bold); center(kg(tNet), COL[2], COL[3], 627.2 + dy, SZ, bold); center(kg(tGross), COL[3], COL[4], 627.2 + dy, SZ, bold);
-  [COL[0], COL[2], COL[3], COL[4]].forEach((x) => vline(x, 176.0, bot));
-  vline(COL[1], 176.0, totTop);
+  [COL[0], COL[2], COL[3], COL[4]].forEach((x) => vline(x, 176.0 + OFF, bot));
+  vline(COL[1], 176.0 + OFF, totTop);
   T("Note:", 20.7, 642.9 + dy, SZ, bold); T(fit(d.catatan || "-", 440, SZ, bold), 46.3, 642.9 + dy, SZ, bold);
 
   const im = (img, x0, x1, top, bt) => {
@@ -73,7 +76,7 @@ export async function buatPackingListPdf(d) {
     page.pushOperators(popGraphicsState());
   };
   im(sig, 209.9, 280.7, 676.0 + dy, 740.5 + dy);
-  const cols = [[COL[0], COL[2], "Pengawas", d.pengawas], [COL[2], COL[3], "Direktur Produksi", DIREKTUR], [COL[3], COL[4], "Pembeli / Penerima", d.penerima]];
+  const cols = (opt.ttd ?? [["Pengawas", d.pengawas], ["Direktur Produksi", DIREKTUR], ["Pembeli / Penerima", d.penerima]]).map(([lab, nm], i) => [COL[[0, 2, 3][i]], COL[[2, 3, 4][i]], lab, nm]);
   for (const [x0, x1, lab, nm] of cols) { center(lab, x0, x1, 747.5 + dy, SZ, bold, SKEW); center(fit(nm ?? "", x1 - x0 - 6, SZ), x0, x1, 760.7 + dy, SZ, reg, SKEW); }
   hline(18.2, 501.8, 755.2 + dy);
   rect(18.2, 501.8, 771.2 + dy, 773.7 + dy, BAR);

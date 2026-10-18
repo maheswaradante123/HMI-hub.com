@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
-import { CONFIGS } from "@/lib/docs/config";
+import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { PmtForm } from "@/components/pmt-form";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
@@ -32,7 +32,7 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
   const { data } = await supabase.from(cfg.table).select(`*${childSel ? ", " + childSel : ""}`).eq("id", id).is("deleted_at", null).maybeSingle();
   const doc = data as unknown as Record<string, unknown> | null;
   if (!doc) notFound();
-  if (doc.status !== "DRAFT") {
+  if (!editableIn(slug, String(doc.status))) {
     return (
       <div className="max-w-2xl">
         <h1 className="text-3xl font-bold">Tidak bisa diubah</h1>

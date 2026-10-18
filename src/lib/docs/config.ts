@@ -203,6 +203,20 @@ export const CONFIGS: Record<string, DocConfig> = {
     ],
     statuses: ["DRAFT", "FINAL", "VOID"], prefill: [],
   },
+  do: {
+    type: "DO", slug: "do", module: "delivery_order", title: "Delivery Order", singular: "Surat Jalan",
+    intro: "Surat jalan dari Packing List, berjalan paralel dengan Invoice. Terbitkan, catat penerimaan (tanda tangan penerima), lalu simpan tautan scan surat jalan fisik di Google Drive.",
+    table: "delivery_orders", select: "*, customers(name), packing_lists(doc_number)",
+    columns: [c("Nomor", "doc_number"), c("Tanggal", "do_date", "date"), c("Packing List", "packing_lists.doc_number"), c("Customer", "customers.name"), c("Penerima", "receiver_name"), c("Status", "status", "status")],
+    header: [ref("pl_id", "Dari Packing List", "packing_lists", { required: true, refStatus: ["PACKED", "DELIVERED"] }), f("do_date", "Tanggal surat jalan", "date", { required: true, today: true }),
+      f("driver_name", "Nama sopir", "text"), f("vehicle_plate", "Plat kendaraan", "text"), f("delivery_address", "Alamat pengiriman", "textarea"), notes,
+      f("receiver_name", "Nama penerima (yang tanda tangan)", "text", { help: "Diisi setelah barang diterima." }), f("received_on", "Tanggal diterima", "date"),
+      f("scan_url", "Tautan scan di Google Drive", "text", { help: "Tempel tautan file hasil scan surat jalan yang sudah ditandatangani (drive.google.com)." })],
+    summary: [c("Packing List", "packing_lists.doc_number"), c("Customer", "customers.name"), c("Tanggal", "do_date", "date"), c("Sopir", "driver_name"), c("Plat kendaraan", "vehicle_plate"), c("Alamat pengiriman", "delivery_address"),
+      c("Penerima", "receiver_name"), c("Tanggal diterima", "received_on", "date"), c("Tautan scan", "scan_url"), c("Catatan", "notes")],
+    children: [],
+    statuses: ["DRAFT", "SENT", "RECEIVED", "ARCHIVED", "VOID"], prefill: ["pl"],
+  },
   so: {
     type: "SO", slug: "so", module: "stock_opname", title: "Stock Opname", singular: "Opname",
     intro: "Hitung fisik stok. Setelah disetujui Owner, selisih dengan stok sistem dikoreksi otomatis dan tercatat di riwayat mutasi.",
@@ -219,5 +233,9 @@ export const CONFIGS: Record<string, DocConfig> = {
     statuses: ["DRAFT", "APPROVED", "CANCELLED"], prefill: [],
   },
 };
+
+// Status yang masih boleh diubah isiannya (selain DRAFT bawaan).
+export const EDITABLE_STATUSES: Record<string, string[]> = { do: ["DRAFT", "SENT", "RECEIVED"] };
+export const editableIn = (slug: string, status: string) => (EDITABLE_STATUSES[slug] ?? ["DRAFT"]).includes(status);
 
 export const BY_SLUG = CONFIGS;

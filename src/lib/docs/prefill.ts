@@ -57,6 +57,12 @@ export async function loadPrefill(supabase: Supa, cfg: DocConfig, sp: Record<str
         return { product_id: pid, qty: String(qty).replace(".", ","), unit_price: p ? money(p) : "" };
       });
     }
+  } else if (cfg.type === "DO" && take("pl")) {
+    const { data } = await supabase.from("packing_lists").select("id, driver_name, vehicle_plate, request_orders(delivery_address)").eq("id", take("pl")!).maybeSingle();
+    if (data) {
+      const ro = Array.isArray(data.request_orders) ? data.request_orders[0] : data.request_orders;
+      out.header = { pl_id: data.id, driver_name: s(data.driver_name), vehicle_plate: s(data.vehicle_plate), delivery_address: s(ro?.delivery_address) };
+    }
   } else if (cfg.type === "AP" && take("cw")) {
     const id = take("cw")!;
     const [{ data: cw }, { data: prices }] = await Promise.all([

@@ -3,6 +3,7 @@ export const DOC_STATUS_LABEL: Record<string, string> = {
   SUBMITTED: "Diajukan", APPROVED: "Disetujui", REJECTED: "Ditolak", DONE: "Selesai",
   PACKED: "Sudah dikemas", DELIVERED: "Terkirim", FINAL: "Final", VOID: "Dibatalkan",
   ISSUED: "Terbit", PARTIAL: "Dibayar sebagian", PAID: "Lunas", POSTED: "Terposting",
+  SENT: "Dikirim", RECEIVED: "Diterima", ARCHIVED: "Terarsip",
 };
 
 export const DOC_STATUS_STYLE: Record<string, string> = {
@@ -10,6 +11,9 @@ export const DOC_STATUS_STYLE: Record<string, string> = {
   SUBMITTED: "bg-amber-100 text-amber-900",
   CONFIRMED: "bg-blue-100 text-blue-900",
   PACKED: "bg-blue-100 text-blue-900",
+  SENT: "bg-blue-100 text-blue-900",
+  RECEIVED: "bg-green-100 text-green-900",
+  ARCHIVED: "bg-emerald-200 text-emerald-950",
   ISSUED: "bg-blue-100 text-blue-900",
   PARTIAL: "bg-amber-100 text-amber-900",
   APPROVED: "bg-green-100 text-green-900",

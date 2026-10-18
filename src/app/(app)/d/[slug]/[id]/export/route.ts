@@ -6,7 +6,7 @@ import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
-import { buatPackingListPdf, buatPackingListXlsx } from "@/lib/export/pl-pdf.mjs";
+import { buatPackingListPdf, buatPackingListXlsx, DIREKTUR } from "@/lib/export/pl-pdf.mjs";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
 import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
@@ -28,10 +28,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string; i
 
 async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod" && slug !== "pl") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : "invoice";
+  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -44,6 +44,26 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     new NextResponse((await wb.xlsx.writeBuffer()) as BodyInit, {
       headers: { "Content-Type": XLSX, "Content-Disposition": `attachment; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.xlsx"`, "Cache-Control": "private, no-store" },
     });
+  if (slug === "do") {
+    const { data: dn } = await supabase
+      .from("delivery_orders")
+      .select("doc_number, do_date, driver_name, vehicle_plate, delivery_address, notes, receiver_name, customers(name), packing_lists(doc_number, phone, pl_items(line_no, qty, gross_weight, products(name)))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!dn) return NextResponse.json({ error: "Surat jalan tidak ditemukan." }, { status: 404 });
+    type It = { line_no: number; qty: number; gross_weight: number | null; products: { name: string } | null };
+    type P = { doc_number: string; phone: string | null; pl_items: It[] };
+    const pl = dn.packing_lists as unknown as P | null;
+    const items = [...(pl?.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no);
+    const cust = (dn.customers as unknown as { name: string } | null)?.name ?? "";
+    const kanan: [string, string][] = [["No. PL", pl?.doc_number ?? ""], ["Sopir", [dn.driver_name, dn.vehicle_plate].filter(Boolean).join(" / ")]];
+    if (pl?.phone) kanan.push(["No. Telepon", pl.phone]);
+    const doData = {
+      nomor: dn.doc_number, tanggal: dn.do_date, kepada: cust, alamat: dn.delivery_address ?? "", catatan: dn.notes ?? "",
+      baris: items.map((i) => ({ jenis: i.products?.name ?? "", net: Number(i.qty), gross: Number(i.gross_weight ?? i.qty) })),
+    };
+    const ttd: [string, string][] = [["Pengirim", dn.driver_name ?? ""], ["Direktur Produksi", DIREKTUR], ["Penerima", dn.receiver_name ?? ""]];
+    return new NextResponse((await buatPackingListPdf(doData, { judul: "Surat Jalan", kanan, ttd })) as BodyInit, { headers: pdfHeaders(dn.doc_number) });
+  }
   if (slug === "pl") {
     const { data: pl } = await supabase
       .from("packing_lists")
