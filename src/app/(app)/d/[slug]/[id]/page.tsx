@@ -75,9 +75,9 @@ export default async function DocDetailPage({
           <a href={`/d/inv/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
-      {(slug === "ro" || slug === "prod") && session.can(slug === "ro" ? "ro" : "production_order", "export") && (
+      {(slug === "ro" || slug === "prod" || slug === "pl") && session.can(slug === "ro" ? "ro" : slug === "prod" ? "production_order" : "packing_list", "export") && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
-          <PdfPreview href={`/d/${slug}/${id}/export`} title={`${slug === "ro" ? "Realisasi Order" : "Production Order"} ${String(doc.doc_number)}`} xlsx={`/d/${slug}/${id}/export`} />
+          <PdfPreview href={`/d/${slug}/${id}/export`} title={`${slug === "ro" ? "Realisasi Order" : slug === "prod" ? "Production Order" : "Packing List"} ${String(doc.doc_number)}`} xlsx={`/d/${slug}/${id}/export`} />
           <a href={`/d/${slug}/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
           <a href={`/d/${slug}/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>

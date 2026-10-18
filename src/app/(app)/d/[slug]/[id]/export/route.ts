@@ -6,6 +6,7 @@ import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
+import { buatPackingListPdf, buatPackingListXlsx } from "@/lib/export/pl-pdf.mjs";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
 import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
@@ -27,10 +28,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string; i
 
 async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod" && slug !== "pl") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : "invoice";
+  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -43,6 +44,22 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     new NextResponse((await wb.xlsx.writeBuffer()) as BodyInit, {
       headers: { "Content-Type": XLSX, "Content-Disposition": `attachment; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.xlsx"`, "Cache-Control": "private, no-store" },
     });
+  if (slug === "pl") {
+    const { data: pl } = await supabase
+      .from("packing_lists")
+      .select("doc_number, pack_date, phone, supervisor, notes, customers(name), pl_items(line_no, qty, gross_weight, products(name))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!pl) return NextResponse.json({ error: "Packing List tidak ditemukan." }, { status: 404 });
+    type It = { line_no: number; qty: number; gross_weight: number | null; products: { name: string } | null };
+    const items = [...((pl.pl_items as unknown as It[]) ?? [])].sort((a, b) => a.line_no - b.line_no);
+    const cust = (pl.customers as unknown as { name: string } | null)?.name ?? "";
+    const plData = {
+      nomor: pl.doc_number, tanggal: pl.pack_date, kepada: cust, telepon: pl.phone ?? "", catatan: pl.notes ?? "", pengawas: pl.supervisor ?? "", penerima: cust,
+      baris: items.map((i) => ({ jenis: i.products?.name ?? "", net: Number(i.qty), gross: Number(i.gross_weight ?? i.qty) })),
+    };
+    if (!pdf) return xlsxResponse(await buatPackingListXlsx(plData), pl.doc_number);
+    return new NextResponse((await buatPackingListPdf(plData)) as BodyInit, { headers: pdfHeaders(pl.doc_number) });
+  }
   if (slug === "ro") {
     const { data: ro } = await supabase
       .from("request_orders")
