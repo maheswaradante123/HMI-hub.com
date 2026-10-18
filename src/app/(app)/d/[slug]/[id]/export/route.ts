@@ -6,7 +6,8 @@ import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
-import { buatPackingListPdf, buatPackingListXlsx, DIREKTUR } from "@/lib/export/pl-pdf.mjs";
+import { buatPackingListPdf, buatPackingListXlsx } from "@/lib/export/pl-pdf.mjs";
+import { buatSuratJalanPdf, buatSuratJalanXlsx } from "@/lib/export/do-pdf.mjs";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
 import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
@@ -47,22 +48,27 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
   if (slug === "do") {
     const { data: dn } = await supabase
       .from("delivery_orders")
-      .select("doc_number, do_date, driver_name, vehicle_plate, delivery_address, notes, receiver_name, customers(name), packing_lists(doc_number, phone, pl_items(line_no, qty, gross_weight, products(name)))")
+      .select("doc_number, do_date, notes, customers(name), packing_lists(doc_number, phone, supervisor, request_orders(orderer_name), pl_items(line_no, qty, products(name, product_categories(name), units(name))))")
       .eq("id", id).is("deleted_at", null).maybeSingle();
     if (!dn) return NextResponse.json({ error: "Surat jalan tidak ditemukan." }, { status: 404 });
-    type It = { line_no: number; qty: number; gross_weight: number | null; products: { name: string } | null };
-    type P = { doc_number: string; phone: string | null; pl_items: It[] };
+    type It = { line_no: number; qty: number; products: { name: string; product_categories: { name: string } | null; units: { name: string } | null } | null };
+    type P = { doc_number: string; phone: string | null; supervisor: string | null; request_orders: { orderer_name: string | null } | null; pl_items: It[] };
     const pl = dn.packing_lists as unknown as P | null;
-    const items = [...(pl?.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no);
     const cust = (dn.customers as unknown as { name: string } | null)?.name ?? "";
-    const kanan: [string, string][] = [["No. PL", pl?.doc_number ?? ""], ["Sopir", [dn.driver_name, dn.vehicle_plate].filter(Boolean).join(" / ")]];
-    if (pl?.phone) kanan.push(["No. Telepon", pl.phone]);
+    // Satu baris per produk: jumlahkan berat net semua kemasan produk yang sama.
+    const per = new Map<string, { desc: string; jenis: string; qty: number; unit: string }>();
+    for (const i of [...(pl?.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no)) {
+      const name = i.products?.name ?? "";
+      const cur = per.get(name) ?? { desc: name, jenis: i.products?.product_categories?.name ?? "Daging", qty: 0, unit: i.products?.units?.name ?? "Kg" };
+      cur.qty = Math.round((cur.qty + Number(i.qty)) * 1000) / 1000;
+      per.set(name, cur);
+    }
     const doData = {
-      nomor: dn.doc_number, tanggal: dn.do_date, kepada: cust, alamat: dn.delivery_address ?? "", catatan: dn.notes ?? "",
-      baris: items.map((i) => ({ jenis: i.products?.name ?? "", net: Number(i.qty), gross: Number(i.gross_weight ?? i.qty) })),
+      nomor: dn.doc_number, tanggal: dn.do_date, kepada: pl?.request_orders?.orderer_name || cust, telepon: pl?.phone ?? "", catatan: dn.notes ?? "",
+      pengawas: pl?.supervisor ?? "", penerima: cust, baris: [...per.values()],
     };
-    const ttd: [string, string][] = [["Pengirim", dn.driver_name ?? ""], ["Direktur Produksi", DIREKTUR], ["Penerima", dn.receiver_name ?? ""]];
-    return new NextResponse((await buatPackingListPdf(doData, { judul: "Surat Jalan", kanan, ttd })) as BodyInit, { headers: pdfHeaders(dn.doc_number) });
+    if (!pdf) return xlsxResponse(await buatSuratJalanXlsx(doData), dn.doc_number);
+    return new NextResponse((await buatSuratJalanPdf(doData)) as BodyInit, { headers: pdfHeaders(dn.doc_number) });
   }
   if (slug === "pl") {
     const { data: pl } = await supabase

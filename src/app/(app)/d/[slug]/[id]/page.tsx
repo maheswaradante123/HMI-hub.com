@@ -81,8 +81,9 @@ export default async function DocDetailPage({
       )}
       {slug === "do" && session.can("delivery_order", "export") && status !== "DRAFT" && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
-          <PdfPreview href={`/d/do/${id}/export`} title={`Surat Jalan ${String(doc.doc_number)}`} />
+          <PdfPreview href={`/d/do/${id}/export`} title={`Surat Jalan ${String(doc.doc_number)}`} xlsx={`/d/do/${id}/export`} />
           <a href={`/d/do/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+          <a href={`/d/do/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
       {(slug === "ro" || slug === "prod" || slug === "pl") && session.can(slug === "ro" ? "ro" : slug === "prod" ? "production_order" : "packing_list", "export") && (
