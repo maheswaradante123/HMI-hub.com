@@ -13,7 +13,7 @@ export default async function RoleDetailPage({ params, searchParams }: { params:
   const sp = await searchParams;
   if (!UUID.test(id)) notFound();
   const session = await requireSession();
-  if (!session.can("role", "view")) return <Forbidden roleName={session.roleName} what="Role & Izin" />;
+  if (!session.can("role", "view")) return <Forbidden roleName={session.roleName} what="Hak Akses" />;
   const supabase = await createClient();
   const { data: role } = await supabase.from("roles").select("id, name, description, is_superuser").eq("id", id).maybeSingle();
   if (!role) notFound();
@@ -33,7 +33,7 @@ export default async function RoleDetailPage({ params, searchParams }: { params:
 
   return (
     <div className="max-w-5xl">
-      <Link href="/role" className="underline">&larr; Semua role</Link>
+      <Link href="/role" className="underline">&larr; Hak Akses</Link>
       <h1 className="mt-3 text-3xl font-bold">{role.name}</h1>
       {role.description && <p className="mt-1 text-muted">{role.description}</p>}
       {sp.ok && <p role="status" className="mt-4 rounded-md bg-warn-bg px-4 py-3">Izin tersimpan. Perubahan berlaku pada halaman berikutnya yang dibuka user.</p>}

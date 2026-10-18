@@ -71,7 +71,7 @@ export const NAV: NavGroup[] = [
     title: "Admin",
     items: [
       { slug: "user", label: "User", module: "user", href: "/user" },
-      { slug: "role", label: "Role & Izin", module: "role", href: "/role" },
+      { slug: "role", label: "Hak Akses", module: "role", href: "/role" },
       { slug: "audit-log", label: "Audit Log", module: "audit_log", href: "/audit-log" },
     ],
   },

@@ -40,3 +40,27 @@ export async function saveRolePermissions(roleId: string, _prev: RoleState, form
   revalidatePath("/role");
   redirect(`/role/${roleId}?ok=disimpan`);
 }
+
+// Menyalakan atau mematikan satu izin langsung dari matriks Hak Akses (satu huruf = satu izin).
+export async function setRolePermission(roleId: string, permissionId: string, on: boolean): Promise<RoleState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("role", "edit")) return { error: "Anda tidak memiliki izin mengubah hak akses." };
+  if (!UUID.test(roleId) || !UUID.test(permissionId)) return { error: "Data tidak valid." };
+  const supabase = await createClient();
+  const [{ data: role }, { data: perm }] = await Promise.all([
+    supabase.from("roles").select("is_superuser").eq("id", roleId).maybeSingle(),
+    supabase.from("permissions").select("id").eq("id", permissionId).maybeSingle(),
+  ]);
+  if (!role || !perm) return { error: "Role atau izin tidak ditemukan. Muat ulang halaman." };
+  if (role.is_superuser) return { error: "Role Owner memiliki akses penuh dan tidak bisa diubah." };
+  if (on) {
+    const { error } = await supabase.from("role_permissions").insert({ role_id: roleId, permission_id: permissionId });
+    if (error && error.code !== "23505") return { error: "Izin belum tersimpan. Coba lagi." };
+  } else {
+    const { error } = await supabase.from("role_permissions").delete().eq("role_id", roleId).eq("permission_id", permissionId);
+    if (error) return { error: "Izin belum bisa dicabut. Coba lagi." };
+  }
+  revalidatePath("/role");
+  return {};
+}
