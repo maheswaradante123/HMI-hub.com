@@ -10,6 +10,8 @@ import { loadPrefill } from "@/lib/docs/prefill";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
 import { ApForm } from "@/components/ap-form";
+import { CwForm, CW_BLANK_ROWS } from "@/components/cw-form";
+import { loadCwLists } from "@/lib/docs/cw-lists";
 import { loadApLists } from "@/lib/docs/ap-lists";
 import { syncApItems } from "@/lib/docs/ap";
 import { JCP_DEFAULTS } from "@/lib/docs/jcp";
@@ -92,6 +94,22 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Cash Payment Journal Baru</h1>
         <p className="mb-6 mt-1 text-muted">Satu jurnal per minggu. Tarik item dari Purchase Request, tempel dari Excel, atau ketik manual.</p>
         <JcpForm id="" status="DRAFT" initial={{ header: { journal_date: today, initiator_name: session.fullName, ...JCP_DEFAULTS, notes: "" }, lines: prLines }} number="" cancelHref="/d/jcp" />
+      </div>
+    );
+  }
+
+  if (slug === "cw") {
+    const lists = await loadCwLists(supabase);
+    const initial = {
+      header: { weigh_date: todayJakarta(), cow_number: "", supplier_id: "", cow_type_id: "", warehouse_id: lists.warehouses.length === 1 ? lists.warehouses[0].id : "", live_weight: "", carcass_weight: "", notes: "" },
+      items: CW_BLANK_ROWS,
+    };
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/cw" className="underline">Penimbangan Karkas</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Penimbangan Karkas Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Berat hidup opsional. Tidak ada item bawaan: pilih atau ketik sendiri, lalu tentukan kategorinya.</p>
+        <CwForm id="" initial={initial} lists={lists} number="" cancelHref="/d/cw" />
       </div>
     );
   }

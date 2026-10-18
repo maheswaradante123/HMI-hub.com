@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
@@ -13,9 +14,12 @@ import type { Rule } from "@/lib/docs/rules";
 import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
 import { JCP_FLAG_BG, JCP_FLAGS, JCP_SUMMARY_LABELS, jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
 import { loadNames } from "@/lib/pr/data";
+import { CW_CATS, cwCatFromCode, cwTotals, type CwCat } from "@/lib/docs/cw";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NOTICES: Record<string, string> = { disimpan: "Draf tersimpan.", status: "Status dokumen diperbarui." };
+const NOTICES: Record<string, string> = { disimpan: "Draf tersimpan.", status: "Status dokumen diperbarui.", final: "Penimbangan final. Stok sudah masuk atas nama kode sapi ini." };
+const relOne = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+const fmt3 = (n: number) => n.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const NEXT: Record<string, { when: string[]; label: string; href: (id: string) => string; module: string }[]> = {
   ro: [
@@ -39,7 +43,7 @@ export default async function DocDetailPage({
   params, searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
-  searchParams: Promise<{ ok?: string }>;
+  searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
   const { slug, id } = await params;
   const sp = await searchParams;
@@ -115,7 +119,8 @@ export default async function DocDetailPage({
           <a href={`/d/pmt/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
-      {sp.ok && NOTICES[sp.ok] && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
+      {sp.err && <p role="alert" className="no-print mt-4 rounded-md bg-danger-bg px-4 py-3 text-danger">Draf tersimpan, tetapi belum bisa difinalkan: {sp.err.slice(0, 300)}</p>}
+      {sp.ok && NOTICES[sp.ok] && !sp.err && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
 
       <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
         {cfg.summary.map((c) => (
@@ -216,8 +221,59 @@ export default async function DocDetailPage({
         );
       })()}
 
+      {slug === "cw" && (() => {
+        const raw = ((doc.cw_items as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
+        const items = raw.map((r) => {
+          const p = relOne(r.products as { name: string; product_categories: { code: string } | { code: string }[] | null } | null);
+          const nn = relOne(r.non_carcass_types as { name: string } | null);
+          return { name: p?.name ?? nn?.name ?? "-", cat: (p ? cwCatFromCode(relOne(p.product_categories)?.code) : "Non-Karkas") as CwCat, weight: Number(r.weight) };
+        });
+        const carcass = Number(doc.carcass_weight);
+        const t = cwTotals(items, carcass);
+        const tiles: [string, string][] = [
+          ["Berat hidup", doc.live_weight === null ? "-" : `${fmt3(Number(doc.live_weight))} Kg`], ["Karkas", `${fmt3(carcass)} Kg`], ["Total hasil", `${fmt3(t.total)} Kg`],
+          ["% daging terhadap karkas", t.meatPct === null ? "-" : `${t.meatPct.toFixed(2).replace(".", ",")}%`], ...CW_CATS.map((k) => [k, fmt3(t.byCat[k])] as [string, string]),
+        ];
+        return (
+          <>
+            <section className="mt-6" aria-labelledby="cw-ring">
+              <h2 id="cw-ring" className="sr-only">Ringkasan hasil potong</h2>
+              <dl className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                {tiles.map(([k, v]) => <div key={k} className="rounded-lg border border-line bg-surface p-4"><dt className="text-muted">{k}</dt><dd className="text-xl font-semibold tabular-nums">{v}</dd></div>)}
+              </dl>
+              {status === "FINAL" && <p className="mt-3 text-muted">Stok daging, tulang dan jeroan sudah masuk atas nama kode sapi {String(doc.cow_number)} ({String(doc.doc_number)}). Item Non-Karkas hanya dicatat, tidak masuk stok.</p>}
+            </section>
+            <section className="mt-8" aria-labelledby="t-items">
+              <h2 id="t-items" className="text-2xl font-bold">Rincian per item</h2>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface">
+                <table className="w-full min-w-[640px] text-left text-lg">
+                  <thead className="border-b border-line bg-background">
+                    <tr><th scope="col" className="px-4 py-3 font-semibold">#</th><th scope="col" className="px-4 py-3 font-semibold">Item</th><th scope="col" className="px-4 py-3 font-semibold">Kategori</th><th scope="col" className="px-4 py-3 text-right font-semibold">Berat (Kg)</th><th scope="col" className="px-4 py-3 text-right font-semibold">% daging dari karkas</th></tr>
+                  </thead>
+                  <tbody>
+                    {CW_CATS.filter((k) => items.some((i) => i.cat === k)).map((k) => (
+                      <Fragment key={k}>
+                        <tr className="border-b border-line bg-background font-semibold"><td className="px-4 py-2" colSpan={3}>{k}</td><td className="px-4 py-2 text-right tabular-nums">{fmt3(t.byCat[k])}</td><td className="px-4 py-2 text-right tabular-nums">{k === "Daging" && carcass > 0 ? `${((t.byCat.Daging / carcass) * 100).toFixed(2).replace(".", ",")}%` : "-"}</td></tr>
+                        {items.filter((i) => i.cat === k).map((i, n) => (
+                          <tr key={`${k}-${n}`} className="border-b border-line">
+                            <td className="px-4 py-2 text-muted">{n + 1}</td><td className="px-4 py-2">{i.name}</td><td className="px-4 py-2">{k}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">{fmt3(i.weight)}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">{k === "Daging" && carcass > 0 ? `${((i.weight / carcass) * 100).toFixed(2).replace(".", ",")}%` : "-"}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                    <tr className="bg-background font-semibold"><td className="px-4 py-3" colSpan={3}>Total hasil</td><td className="px-4 py-3 text-right tabular-nums">{fmt3(t.total)}</td><td className="px-4 py-3 text-right">-</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        );
+      })()}
+
       {cfg.children.map((c) => {
-        if (slug === "jcp") return null;
+        if (slug === "jcp" || slug === "cw") return null;
         const rows = ((doc[c.table] as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
         if (rows.length === 0 && !c.required) return null;
         const totalVal = c.total ? rows.reduce((s, r) => s + Number(r[c.total!.qty]) * Number(r[c.total!.price]), 0) : null;

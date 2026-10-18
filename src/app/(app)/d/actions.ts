@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CONFIGS } from "@/lib/docs/config";
-import { parseDoc, type Payload } from "@/lib/docs/parse";
+import { parseDoc, parseQty, type Payload } from "@/lib/docs/parse";
+import { cleanCwItems, cwTotals } from "@/lib/docs/cw";
 import { dbMessage } from "@/lib/docs/errors";
 
 export type DocFormState = { error?: string; payload?: string };
@@ -44,6 +45,51 @@ export async function saveDoc(slug: string, id: string, _prev: DocFormState, for
 
   revalidatePath(`/d/${slug}`);
   redirect(`/d/${slug}/${data as string}?ok=disimpan`);
+}
+
+// Penimbangan Karkas: item diketik bebas + kategori. Item yang belum ada di master dibuat otomatis, lalu dokumen disimpan
+// sebagai draf, atau langsung difinalkan (stok masuk) bila tombol "Finalisasi & masuk stok" yang ditekan.
+export async function saveCw(id: string, _prev: DocFormState, formData: FormData): Promise<DocFormState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  const raw = String(formData.get("payload") ?? "");
+  const finalize = formData.get("mode") === "final";
+  const cfg = CONFIGS.cw;
+  if (id && !UUID.test(id)) return { error: "Dokumen tidak valid.", payload: raw };
+  if (!session.can(cfg.module, id ? "edit" : "create")) return { error: "Anda tidak memiliki izin untuk menyimpan dokumen ini.", payload: raw };
+  if (finalize && !session.can(cfg.module, "edit")) return { error: "Anda tidak memiliki izin untuk memfinalkan penimbangan.", payload: raw };
+
+  let payload: { header?: Record<string, string>; items?: { name: string; cat: string; weight: string }[] };
+  try { payload = JSON.parse(raw); } catch { return { error: "Isian tidak terbaca. Muat ulang halaman lalu coba lagi.", payload: raw }; }
+  const head = parseDoc({ ...cfg, children: [] }, { header: payload.header ?? {} });
+  if (!head.ok) return { error: head.error, payload: raw };
+  const live = head.header.live_weight, carcass = Number(head.header.carcass_weight);
+  if (live !== null && live !== undefined && carcass > Number(live)) return { error: "Berat karkas tidak boleh lebih besar dari berat hidup.", payload: raw };
+  const items = cleanCwItems(Array.isArray(payload.items) ? payload.items : [], parseQty);
+  if (!items.ok) return { error: items.error, payload: raw };
+  if (cwTotals(items.items, carcass).over) return { error: "Total hasil potong melebihi berat karkas. Periksa kembali berat tiap item.", payload: raw };
+
+  const supabase = await createClient();
+  const { data: ids, error: e1 } = await supabase.rpc("cw_resolve_items", { p_items: items.items.map((i) => ({ name: i.name, cat: i.cat })) });
+  if (e1) return { error: dbMessage(e1), payload: raw };
+  const resolved = (ids ?? []) as { product_id: string | null; non_carcass_type_id: string | null }[];
+  const parsed = parseDoc(cfg, {
+    header: payload.header ?? {},
+    children: { items: items.items.map((it, i) => ({ product_id: resolved[i]?.product_id ?? "", non_carcass_type_id: resolved[i]?.non_carcass_type_id ?? "", weight: String(it.weight) })) },
+  });
+  if (!parsed.ok) return { error: parsed.error, payload: raw };
+
+  const { data, error } = await supabase.rpc("save_doc", { p_type: cfg.type, p_id: id || null, p_header: parsed.header, p_children: parsed.children });
+  if (error) return { error: error.code === "23505" ? "Kode sapi ini sudah pernah ditimbang (ada penimbangan lain yang masih aktif)." : dbMessage(error), payload: raw };
+  const docId = data as string;
+  revalidatePath("/d/cw");
+  if (!finalize) redirect(`/d/cw/${docId}?ok=disimpan`);
+
+  const { error: e2 } = await supabase.rpc("doc_change_status", { p_type: cfg.type, p_id: docId, p_to: "FINAL", p_note: null });
+  revalidatePath(`/d/cw/${docId}`);
+  // Draf sudah tersimpan; bila finalisasi gagal, buka drafnya beserta alasannya agar tidak tersimpan dua kali.
+  if (e2) redirect(`/d/cw/${docId}?ok=disimpan&err=${encodeURIComponent(dbMessage(e2))}`);
+  redirect(`/d/cw/${docId}?ok=final`);
 }
 
 export async function changeDocStatus(slug: string, id: string, to: string, _prev: DocActionState, formData: FormData): Promise<DocActionState> {

@@ -31,7 +31,7 @@ export default async function DocListPage({
   const term = (sp.q ?? "").replace(/[,()%*\\]/g, " ").trim();
   if (term) q = q.ilike("doc_number", `%${term}%`);
   const { data, error } = await q;
-  const rows = (data ?? []) as unknown as Record<string, unknown>[];
+  const rows = ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => (cfg.derive ? { ...r, ...cfg.derive(r) } : r));
 
   return (
     <div>

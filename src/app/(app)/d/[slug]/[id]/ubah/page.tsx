@@ -7,6 +7,9 @@ import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
 import { ApForm } from "@/components/ap-form";
+import { CwForm } from "@/components/cw-form";
+import { loadCwLists } from "@/lib/docs/cw-lists";
+import { cwCatFromCode, type CwRow } from "@/lib/docs/cw";
 import { loadApLists } from "@/lib/docs/ap-lists";
 import { todayJakarta } from "@/lib/pricing/data";
 import { InvForm } from "@/components/inv-form";
@@ -65,6 +68,24 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
         <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "cw") {
+    const [lists, { data: its }] = await Promise.all([
+      loadCwLists(supabase),
+      supabase.from("cw_items").select("line_no, weight, products(name, product_categories(code)), non_carcass_types(name)").eq("cw_id", id).order("line_no"),
+    ]);
+    const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+    const items: CwRow[] = (its ?? []).map((r) => {
+      const p = one(r.products as unknown as { name: string; product_categories: { code: string } | { code: string }[] | null } | null);
+      const n = one(r.non_carcass_types as unknown as { name: string } | null);
+      return { name: p?.name ?? n?.name ?? "", cat: p ? cwCatFromCode(one(p.product_categories)?.code) : "Non-Karkas", weight: fmtNum(r.weight, false) };
+    });
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Penimbangan Karkas {String(doc.doc_number)}</h1>
+        <CwForm id={id} initial={{ header: header as Record<string, string>, items }} lists={lists} number={String(doc.doc_number)} cancelHref={`/d/cw/${id}`} />
       </div>
     );
   }

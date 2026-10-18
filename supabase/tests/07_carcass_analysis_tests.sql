@@ -13,8 +13,8 @@ declare
   pur constant text := '00000000-0000-0000-0000-000000000003';
   acc constant text := '00000000-0000-0000-0000-000000000004';
   prd constant text := '00000000-0000-0000-0000-000000000005';
-  v_cow uuid; v_wh uuid; v_sup uuid; v_top uuid; v_sk uuid; v_jeroan uuid; v_jagal uuid; v_potong uuid;
-  v_cw uuid; v_cw2 uuid; v_cw3 uuid; v_cw4 uuid; v_ap uuid; v_ap2 uuid; v_ncs uuid; v_before numeric; v_after numeric; v_no text; r record; v_cnt int;
+  v_cow uuid; v_wh uuid; v_sup uuid; v_top uuid; v_sk uuid; v_jeroan uuid; v_jagal uuid; v_potong uuid; v_jeroan_p uuid;
+  v_cw uuid; v_cw2 uuid; v_cw3 uuid; v_cw4 uuid; v_ap uuid; v_ap2 uuid; v_j jsonb; v_j2 jsonb; v_cw5 uuid; v_no2 text; v_ncs uuid; v_before numeric; v_after numeric; v_no text; r record; v_cnt int;
 begin
   select id into v_cow from public.cow_types where code='BX';
   select id into v_wh from public.warehouses where code='GD-TOKO';
@@ -24,6 +24,7 @@ begin
   select id into v_jeroan from public.non_carcass_types where code='JEROHAN';
   select id into v_jagal from public.customers where code='JAGAL-A';
   select id into v_potong from public.cost_types where code='POTONG';
+  v_jeroan_p := v_top;
   select coalesce(sum(qty),0) into v_before from public.v_stock_balance where product_id = v_top;
 
   -- Penimbangan oleh Produksi (matriks Owner); tidak ada CPJ otomatis (tabel CPJ belum ada pun tidak masalah)
@@ -35,9 +36,30 @@ begin
        jsonb_build_object('product_id', v_sk, 'weight', 160),
        jsonb_build_object('non_carcass_type_id', v_jeroan, 'weight', 30))));
   select doc_number into v_no from public.carcass_weighings where id = v_cw;
-  assert v_no ~ '^CW-[0-9]{4}-[0-9]{4}$', 'nomor CW';
+  assert v_no ~ '^CW-[0-9]{3,}-BX001-[IVX]+-[0-9]{2}$', 'nomor CW CW-001-KODESAPI-BULAN-TAHUN, dapat ' || v_no;
   assert pg_temp.err(format('select public.save_doc(''CW'',null,%L::jsonb,''{}'')', jsonb_build_object('cow_type_id', v_cow, 'cow_number', ' bx-001', 'warehouse_id', v_wh, 'live_weight', 300, 'carcass_weight', 150))) = '23505', 'nomor sapi unik';
   assert pg_temp.err(format('select public.save_doc(''CW'',%L,''{"notes":"x"}'',%L::jsonb)', v_cw, '{"items":[{"product_id":null,"non_carcass_type_id":null,"weight":1}]}')) = '23514', 'item harus produk atau non-karkas';
+  -- berat hidup dan jenis sapi opsional; nomor berurut; item baru dibuat otomatis di master
+  v_j := public.cw_resolve_items('[{"name":"Sengkel","cat":"Tulang"},{"name":"Lidah Baru","cat":"Jeroan"},{"name":"Babat X","cat":"Non-Karkas"},{"name":"Daging Baru","cat":"Daging"}]'::jsonb);
+  assert (v_j->0->>'product_id') = v_sk::text, 'nama yang sudah ada memakai produk lama walau kategori beda';
+  assert (select pc.code from public.products p join public.product_categories pc on pc.id = p.category_id where p.id = (v_j->1->>'product_id')::uuid) = 'JEROHAN', 'produk baru berkategori Jeroan';
+  assert (select pc.code from public.products p join public.product_categories pc on pc.id = p.category_id where p.id = (v_j->3->>'product_id')::uuid) = 'DAGING', 'produk baru berkategori Daging';
+  assert (v_j->2->>'non_carcass_type_id') is not null and (v_j->2->>'product_id') is null, 'non-karkas baru masuk master non-karkas';
+  v_j2 := public.cw_resolve_items('[{"name":"lidah baru","cat":"Jeroan"},{"name":"BABAT x","cat":"Non-Karkas"}]'::jsonb);
+  assert (v_j2->0->>'product_id') = (v_j->1->>'product_id') and (v_j2->1->>'non_carcass_type_id') = (v_j->2->>'non_carcass_type_id'), 'resolusi nama tidak membuat dobel';
+  assert pg_temp.err('select public.cw_resolve_items(''[{"name":"X","cat":"Sayur"}]''::jsonb)') = '22023', 'kategori tidak dikenal ditolak';
+  v_cw5 := public.save_doc('CW', null, jsonb_build_object('cow_number', 'AMF014', 'warehouse_id', v_wh, 'carcass_weight', 356),
+    jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id', v_jeroan_p, 'weight', 5))));
+  select doc_number into v_no2 from public.carcass_weighings where id = v_cw5;
+  assert v_no2 ~ '^CW-[0-9]{3,}-AMF014-[IVX]+-[0-9]{2}$', 'CW tanpa berat hidup dan jenis sapi, nomor ' || v_no2;
+  assert substr(v_no2, 4, 3)::int = substr(v_no, 4, 3)::int + 1, 'urutan CW naik satu';
+  assert public.cw_next_seq() = substr(v_no2, 4, 3)::int + 1, 'cw_next_seq = urutan berikutnya';
+  perform public.save_doc('CW', v_cw5, jsonb_build_object('notes', 'x'));
+  perform pg_temp.u(mkt);
+  assert pg_temp.err('select public.cw_resolve_items(''[{"name":"Y","cat":"Daging"}]''::jsonb)') = '42501', 'marketing tidak boleh membuat item';
+  perform pg_temp.u(prd);
+  perform public.doc_change_status('CW', v_cw5, 'VOID', 'uji');
+
   -- analisa sebelum final ditolak
   perform pg_temp.u(pur);
   assert pg_temp.err(format('select public.save_doc(''AP'',null,jsonb_build_object(''supplier_id'',%L,''cow_type_id'',%L,''total_purchase'',1000),jsonb_build_object(''cows'',jsonb_build_array(jsonb_build_object(''cw_id'',%L))))', v_sup, v_cow, v_cw)) = '22023', 'analisa butuh penimbangan final';

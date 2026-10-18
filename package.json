@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:unit": "node --experimental-strip-types --test src/lib/master/schema.test.ts src/lib/pr/schema.test.ts src/lib/pricing/schema.test.ts src/lib/docs/parse.test.ts src/lib/docs/ap.test.ts src/lib/reports.test.ts"
+    "test:unit": "node --experimental-strip-types --test src/lib/master/schema.test.ts src/lib/pr/schema.test.ts src/lib/pricing/schema.test.ts src/lib/docs/parse.test.ts src/lib/docs/ap.test.ts src/lib/docs/cw.test.ts src/lib/reports.test.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

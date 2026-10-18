@@ -1,4 +1,5 @@
 import type { Col, DocConfig, Field } from "./types.ts";
+import { cwCatFromCode } from "./cw.ts";
 
 const f = (name: string, label: string, kind: Field["kind"], extra: Partial<Field> = {}): Field => ({ name, label, kind, ...extra });
 const ref = (name: string, label: string, r: Field["ref"], extra: Partial<Field> = {}): Field => f(name, label, "ref", { ref: r, ...extra });
@@ -68,14 +69,25 @@ export const CONFIGS: Record<string, DocConfig> = {
   },
   cw: {
     type: "CW", slug: "cw", module: "carcass_weighing", title: "Penimbangan Karkas", singular: "Penimbangan",
-    intro: "Hasil timbang satu ekor sapi. Menandai final akan memasukkan stok daging. Penimbangan tidak membuat pembayaran (CPJ) otomatis.",
-    table: "carcass_weighings", select: "*, cow_types(name), suppliers(name), warehouses(name)",
-    columns: [c("Nomor", "doc_number"), c("Tanggal", "weigh_date", "date"), c("No. sapi", "cow_number"), c("Berat hidup", "live_weight", "qty"), c("Karkas", "carcass_weight", "qty"), c("Status", "status", "status")],
-    header: [f("weigh_date", "Tanggal", "date", { required: true, today: true }), ref("cow_type_id", "Jenis sapi", "cow_types", { required: true }), f("cow_number", "Nomor sapi", "text", { required: true, upper: true, help: "Pakai format nomor sapi yang sudah dipakai selama ini." }), ref("supplier_id", "Supplier", "suppliers"), ref("warehouse_id", "Gudang penerima daging", "warehouses", { required: true }), f("live_weight", "Berat hidup (kg)", "qty", { required: true }), f("carcass_weight", "Berat karkas (kg)", "qty", { required: true }), notes],
-    summary: [c("Nomor sapi", "cow_number"), c("Jenis", "cow_types.name"), c("Supplier", "suppliers.name"), c("Gudang", "warehouses.name"), c("Tanggal", "weigh_date", "date"), c("Berat hidup (kg)", "live_weight", "qty"), c("Berat karkas (kg)", "carcass_weight", "qty"), c("Catatan", "notes")],
+    intro: "Hasil potong per ekor sapi; item dan kategori diisi sendiri. Finalisasi memasukkan stok daging, tulang dan jeroan atas nama kode sapi. Penimbangan tidak membuat pembayaran (CPJ) otomatis.",
+    table: "carcass_weighings", select: "*, cow_types(name), suppliers(name), warehouses(name), cw_items(weight, products(product_categories(code)))",
+    columns: [c("Nomor", "doc_number"), c("Tanggal", "weigh_date", "date"), c("Kode Sapi", "cow_number"), c("Supplier", "suppliers.name"), c("Berat Hidup", "live_weight", "qty"), c("Karkas", "carcass_weight", "qty"), c("Daging", "_meat", "qty"), c("Tulang", "_bone", "qty"), c("% Daging", "_pct", "pct"), c("Status", "status", "status")],
+    derive: (r) => {
+      const sum = { Daging: 0, Tulang: 0 };
+      for (const it of (r.cw_items as { weight: number | string; products?: unknown }[] | undefined) ?? []) {
+        const p = Array.isArray(it.products) ? it.products[0] : it.products;
+        const pc = (p as { product_categories?: unknown } | null | undefined)?.product_categories;
+        const cat = cwCatFromCode(((Array.isArray(pc) ? pc[0] : pc) as { code?: string } | null | undefined)?.code);
+        if (p && (cat === "Daging" || cat === "Tulang")) sum[cat] += Number(it.weight);
+      }
+      const car = Number(r.carcass_weight);
+      return { _meat: sum.Daging, _bone: sum.Tulang, _pct: car > 0 ? Math.round((sum.Daging / car) * 10000) / 100 : null };
+    },
+    header: [f("weigh_date", "Tanggal", "date", { required: true, today: true }), ref("cow_type_id", "Jenis sapi", "cow_types"), f("cow_number", "Kode sapi", "text", { required: true, upper: true, help: "Pakai format kode sapi yang sudah dipakai selama ini." }), ref("supplier_id", "Supplier", "suppliers"), ref("warehouse_id", "Gudang penerima daging", "warehouses", { required: true }), f("live_weight", "Berat hidup (kg)", "qty"), f("carcass_weight", "Berat karkas (kg)", "qty", { required: true }), notes],
+    summary: [c("Kode sapi", "cow_number"), c("Jenis", "cow_types.name"), c("Supplier", "suppliers.name"), c("Gudang", "warehouses.name"), c("Tanggal", "weigh_date", "date"), c("Catatan", "notes")],
     children: [{
       key: "items", title: "Hasil potongan", table: "cw_items", fk: "cw_id", required: true,
-      select: "*, products(code, name), non_carcass_types(name)",
+      select: "*, products(code, name, product_categories(code, name)), non_carcass_types(name)",
       hint: "Isi produk (daging/tulang) ATAU jenis non-karkas pada tiap baris, tidak keduanya. Berat dalam kg.",
       exclusive: ["product_id", "non_carcass_type_id"],
       fields: [ref("product_id", "Produk", "products"), ref("non_carcass_type_id", "Non-karkas", "non_carcass_types"), f("weight", "Berat (kg)", "qty", { required: true })],
