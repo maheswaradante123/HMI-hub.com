@@ -2,174 +2,96 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { StatusBadge } from "@/components/status-badge";
-import { PrActions, SupplierPicker } from "@/components/pr-actions";
-import { ClosePrButton } from "@/components/doc-actions";
-import { PRIORITY_LABEL, STATUS_LABEL, dateId, dateTimeId, rupiah, type PrStatus } from "@/lib/pr/constants";
+import { PdfPreview } from "@/components/qurban/pdf-preview";
+import { PrSheet, type SheetItem } from "@/components/pr-sheet";
+import { LINE_LABEL, weekLabel, type LineStatus } from "@/lib/pr/lines";
+import { dateTimeId } from "@/lib/pr/constants";
 import { loadNames } from "@/lib/pr/data";
-import { discardPr } from "../actions";
+import { todayJakarta } from "@/lib/pricing/data";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NOTICES: Record<string, string> = {
-  diajukan: "PR berhasil diajukan dan menunggu persetujuan Owner.",
-  "draf-tersimpan": "Draf tersimpan. PR ini belum diajukan.",
-  ditutup: "PR ditutup. Seluruh proses pembelian selesai.",
-};
 
-export default async function PrDetailPage({
-  params,
-  searchParams,
+export default async function PrSheetPage({
+  params, searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ok?: string; e?: string }>;
+  searchParams: Promise<{ ok?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   if (!UUID.test(id)) notFound();
-
   const session = await requireSession();
   const supabase = await createClient();
-  const { data: pr } = await supabase
+  const { data: sheet } = await supabase
     .from("purchase_requests")
-    .select("*, pr_items(*)")
-    .eq("id", id)
-    .maybeSingle();
-  if (!pr || pr.deleted_at) notFound();
+    .select("id, doc_number, request_date, status, deleted_at, pr_items(id, line_no, item_date, ac, code, item_name, estimated_price, qty, unit, status, pay_method, proof, requester_id, units(name))")
+    .eq("id", id).maybeSingle();
+  if (!sheet || sheet.deleted_at) notFound();
 
-  const [{ data: history }, { data: units }, { data: suppliers }, { data: departments }] = await Promise.all([
-    supabase.from("pr_status_history").select("*").eq("pr_id", id).order("id"),
-    supabase.from("units").select("id, name"),
-    supabase.from("suppliers").select("id, name").eq("is_active", true).order("name"),
-    supabase.from("departments").select("id, name"),
+  type Raw = { id: string; line_no: number; item_date: string; ac: string; code: string; item_name: string; estimated_price: number | null; qty: number; unit: string | null; status: string; pay_method: string; proof: string | null; requester_id: string; units: { name: string } | null };
+  const raw = [...((sheet.pr_items as unknown as Raw[]) ?? [])].sort((a, b) => a.line_no - b.line_no);
+  const ids = raw.map((r) => r.id);
+  const [names, journals, history] = await Promise.all([
+    loadNames(supabase, raw.map((r) => r.requester_id)),
+    ids.length ? supabase.rpc("pr_item_journals", { p_ids: ids }) : Promise.resolve({ data: [] }),
+    supabase.from("pr_status_history").select("id, item_id, from_status, to_status, note, changed_by, changed_at").eq("pr_id", id).order("id", { ascending: false }).limit(60),
   ]);
-  const names = await loadNames(supabase, [
-    pr.requester_id, pr.decided_by, ...(history ?? []).map((h) => h.changed_by as string),
-  ]);
-  const unitName = Object.fromEntries((units ?? []).map((u) => [u.id, u.name]));
-  const deptName = departments?.find((d) => d.id === pr.department_id)?.name ?? "-";
-  const supplierName = Object.fromEntries((suppliers ?? []).map((s) => [s.id, s.name]));
-
-  const items = [...(pr.pr_items ?? [])].sort((a, b) => a.line_no - b.line_no);
-  const total = items.reduce((s, i) => s + Number(i.qty) * Number(i.estimated_price ?? 0), 0);
-
-  const status = pr.status as PrStatus;
-  const isMine = pr.requester_id === session.userId;
-  const canApprove = session.can("purchase_request", "approve");
-  const canProcess = session.can("purchase_request", "edit");
-  const canPickSupplier = canProcess && (status === "APPROVED" || status === "ORDERED") && suppliers && suppliers.length > 0;
-  const decisionLabel = status === "REJECTED" ? "Ditolak oleh" : "Disetujui oleh";
-  const hasDecision = pr.decided_by && (status !== "SUBMITTED" && status !== "UNDER_REVIEW");
+  const jmap = new Map<string, string>(((journals.data ?? []) as { pr_item_id: string; journal_number: string }[]).map((j) => [j.pr_item_id, j.journal_number]));
+  const items: SheetItem[] = raw.map((r) => ({
+    id: r.id, ac: r.ac, code: r.code, desc: r.item_name, price: Number(r.estimated_price ?? 0), qty: Number(r.qty), unit: r.unit ?? r.units?.name ?? "",
+    status: r.status, requester: (names[r.requester_id] ?? "-").split(" ")[0], requesterId: r.requester_id, pay: r.pay_method, proof: r.proof ?? "", cpj: jmap.get(r.id) ?? "", date: r.item_date,
+  }));
+  const hnames = await loadNames(supabase, (history.data ?? []).map((h) => h.changed_by as string));
+  const itemName = new Map(raw.map((r) => [r.id, r.item_name]));
+  const canExport = session.can("purchase_request", "export");
+  const canAdd = session.can("purchase_request", "create") && sheet.status === "OPEN" && sheet.doc_number === (await supabase.rpc("pr_sheet_number", { p_date: todayJakarta() })).data;
+  const label = (s: string | null) => (s ? (LINE_LABEL[s as LineStatus] ?? s) : "dibuat");
+  const OK: Record<string, string> = {};
+  if (sp.ok?.startsWith("ditambah-")) OK[sp.ok] = `${sp.ok.slice(9)} barang masuk ke ${sheet.doc_number} (Draft).`;
 
   return (
-    <div className="max-w-5xl">
+    <div>
       <Link href="/purchase-request" className="underline">&larr; Semua Purchase Request</Link>
-      <div className="mt-3 flex flex-wrap items-center gap-4">
-        <h1 className="text-3xl font-bold">{pr.doc_number}</h1>
-        <StatusBadge status={pr.status} />
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">{sheet.doc_number}</h1>
+          <p className="text-muted">{weekLabel(String(sheet.request_date))} · {items.length} barang</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {canExport && (<>
+            <PdfPreview href={`/purchase-request/${id}/export`} title={`Purchase Request ${sheet.doc_number}`} xlsx={`/purchase-request/${id}/export`} />
+            <a href={`/purchase-request/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+            <a href={`/purchase-request/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+          </>)}
+          {canAdd && <Link href="/purchase-request/baru" className="rounded-md bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-dark">+ Tambah barang</Link>}
+        </div>
       </div>
+      {sp.ok && OK[sp.ok] && <p role="status" className="mt-4 rounded-md bg-ok-bg px-4 py-3 text-ok">{OK[sp.ok]}</p>}
 
-      {sp.ok && NOTICES[sp.ok] && <p role="status" className="mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
-      {sp.e === "gagal" && <p role="alert" className="mt-4 rounded-md bg-danger-bg px-4 py-3 text-danger">Aksi gagal. Silakan coba lagi.</p>}
+      <div className="mt-5">
+        <PrSheet sheetId={id} items={items} flags={{
+          canEdit: session.can("purchase_request", "edit"), canApprove: session.can("purchase_request", "approve"), canDelete: session.can("purchase_request", "delete"),
+          canCreateJournal: session.can("cpj_journal", "create"), userId: session.userId, legacy: sheet.status !== "OPEN",
+        }} />
+      </div>
+      <p className="mt-3 text-sm text-muted">
+        Alur: Draft → Diajukan (Purchasing) → Approved / Ditolak (Owner) → Order → Received → dibayar lewat Cash Payment Journal → Closed.
+        Barang yang nasibnya berbeda tetap dalam satu lembar. Lembar PR dibuat per minggu (001 = minggu pertama bulan itu).
+      </p>
 
-      <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
-        <div><dt className="text-muted">Tanggal</dt><dd className="text-lg">{dateId(pr.request_date)}</dd></div>
-        <div><dt className="text-muted">Pemohon</dt><dd className="text-lg">{names[pr.requester_id] ?? "-"} ({deptName})</dd></div>
-        <div><dt className="text-muted">Prioritas</dt><dd className="text-lg">{PRIORITY_LABEL[pr.priority] ?? pr.priority}</dd></div>
-        {hasDecision && (
-          <div>
-            <dt className="text-muted">{decisionLabel}</dt>
-            <dd className="text-lg">{names[pr.decided_by] ?? "-"}{pr.decided_at ? `, ${dateTimeId(pr.decided_at)}` : ""}</dd>
-          </div>
-        )}
-        <div className="md:col-span-2"><dt className="text-muted">Alasan pembelian</dt><dd className="whitespace-pre-line text-lg">{pr.reason}</dd></div>
-        {status === "REJECTED" && pr.review_note && (
-          <div className="md:col-span-2 rounded-md bg-danger-bg px-4 py-3">
-            <dt className="font-semibold text-danger">Alasan penolakan</dt>
-            <dd className="whitespace-pre-line text-lg text-danger">{pr.review_note}</dd>
-          </div>
-        )}
-      </dl>
-
-      <h2 className="mb-3 mt-8 text-xl font-bold">Barang yang diminta</h2>
-      <div className="overflow-x-auto rounded-lg border border-line bg-surface">
-        <table className="w-full text-left text-lg">
-          <thead className="border-b border-line bg-background">
-            <tr>
-              {["No", "Barang", "Jumlah", "Estimasi harga", "Subtotal", "Supplier"].map((h) => (
-                <th key={h} scope="col" className="px-4 py-3 font-semibold">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => (
-              <tr key={i.id} className="border-b border-line align-top last:border-b-0">
-                <td className="px-4 py-3">{i.line_no}</td>
-                <td className="px-4 py-3">
-                  {i.item_name}
-                  {i.notes && <p className="text-base text-muted">{i.notes}</p>}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">{Number(i.qty).toLocaleString("id-ID", { maximumFractionDigits: 3 })} {unitName[i.unit_id] ?? ""}</td>
-                <td className="whitespace-nowrap px-4 py-3">{i.estimated_price == null ? "-" : rupiah(Number(i.estimated_price))}</td>
-                <td className="whitespace-nowrap px-4 py-3">{i.estimated_price == null ? "-" : rupiah(Number(i.qty) * Number(i.estimated_price))}</td>
-                <td className="px-4 py-3">
-                  {canPickSupplier ? (
-                    <SupplierPicker prId={id} itemId={i.id} current={i.supplier_id} suppliers={suppliers!} />
-                  ) : (
-                    supplierName[i.supplier_id] ?? "-"
-                  )}
-                </td>
-              </tr>
+      {(history.data ?? []).length > 0 && (
+        <details className="mt-6 rounded-lg border border-line bg-surface p-4">
+          <summary className="cursor-pointer text-lg font-semibold">Riwayat status ({(history.data ?? []).length} terakhir)</summary>
+          <ul className="mt-3 space-y-1">
+            {(history.data ?? []).map((h) => (
+              <li key={h.id as number} className="text-base">
+                <span className="text-muted">{dateTimeId(h.changed_at as string)}</span> · {itemName.get(h.item_id as string) ?? "Lembar"}: {label(h.from_status as string | null)} → <b>{label(h.to_status as string)}</b>
+                {" "}oleh {hnames[h.changed_by as string] ?? "-"}{h.note ? ` — ${h.note}` : ""}
+              </li>
             ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-line bg-background">
-              <td colSpan={4} className="px-4 py-3 text-right font-semibold">Estimasi total</td>
-              <td colSpan={2} className="px-4 py-3 text-lg font-bold">{total > 0 ? rupiah(total) : "-"}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      {(status === "DRAFT" && isMine) && (
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href={`/purchase-request/${id}/ubah`} className="rounded-md bg-brand px-6 py-3 text-lg font-semibold text-white hover:bg-brand-dark">
-            Ubah draf / ajukan
-          </Link>
-          <form action={discardPr.bind(null, id)}>
-            <button type="submit" className="rounded-md border-2 border-danger px-6 py-3 text-lg font-semibold text-danger hover:bg-danger-bg">
-              Hapus draf
-            </button>
-          </form>
-        </div>
+          </ul>
+        </details>
       )}
-
-      {(canApprove || canProcess) && (
-        <div className="mt-8">
-          <PrActions prId={id} status={pr.status} canApprove={canApprove} canProcess={canProcess} />
-        </div>
-      )}
-
-      {(status === "RECEIVED" || status === "PAID") && session.can("cpj", "create") && (
-        <div className="mt-8">
-          <Link href={`/d/cpj/baru?pr=${id}`} className="inline-block rounded-md border-2 border-brand px-6 py-3 text-lg font-semibold text-brand hover:bg-background">
-            Catat pembayaran PR ini (CPJ)
-          </Link>
-        </div>
-      )}
-      {status === "PAID" && session.can("cpj", "edit") && (
-        <div className="mt-6"><ClosePrButton prId={id} /></div>
-      )}
-
-      <h2 className="mb-3 mt-10 text-xl font-bold">Riwayat status</h2>
-      <ol className="space-y-2 rounded-lg border border-line bg-surface p-5">
-        {(history ?? []).map((h) => (
-          <li key={h.id} className="text-lg">
-            <span className="font-semibold">{STATUS_LABEL[h.to_status as PrStatus] ?? h.to_status}</span>
-            {" "}oleh {names[h.changed_by] ?? "-"}, {dateTimeId(h.changed_at)}
-            {h.note && <span className="block text-base text-muted">Catatan: {h.note}</span>}
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }

@@ -73,12 +73,22 @@ export default async function NewDocPage({
 
   if (slug === "jcp") {
     const today = todayJakarta();
+    // Dari lembar PR: ?pr=id,id langsung mengisi baris jurnal dari barang yang dicentang.
+    const prIds = new Set((sp.pr ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x)));
+    let prLines: Record<string, string>[] = [];
+    if (prIds.size > 0 && (session.can("cpj_journal", "create") || session.can("cpj_journal", "edit"))) {
+      const { data } = await (await createClient()).rpc("cpj_pullable_pr_items");
+      prLines = ((data ?? []) as Record<string, unknown>[]).filter((r) => prIds.has(String(r.pr_item_id))).map((r) => ({
+        trans_date: today, ac: String(r.ac ?? "OPR"), code: String(r.code ?? ""), description: String(r.item_name), price: Number(r.price) ? Number(r.price).toLocaleString("id-ID") : "",
+        qty: String(Number(r.qty)).replace(".", ","), unit: String(r.unit ?? ""), flag: "NONE", pr_item_id: String(r.pr_item_id), real_price: "", real_qty: "", proof: "",
+      }));
+    }
     return (
       <div>
         <p className="text-sm text-muted"><Link href="/d/jcp" className="underline">Cash Payment Journal</Link> › Baru</p>
         <h1 className="text-3xl font-bold">Cash Payment Journal Baru</h1>
         <p className="mb-6 mt-1 text-muted">Satu jurnal per minggu. Tarik item dari Purchase Request, tempel dari Excel, atau ketik manual.</p>
-        <JcpForm id="" status="DRAFT" initial={{ header: { journal_date: today, initiator_name: session.fullName, ...JCP_DEFAULTS, notes: "" }, lines: [] }} number="" cancelHref="/d/jcp" />
+        <JcpForm id="" status="DRAFT" initial={{ header: { journal_date: today, initiator_name: session.fullName, ...JCP_DEFAULTS, notes: "" }, lines: prLines }} number="" cancelHref="/d/jcp" />
       </div>
     );
   }

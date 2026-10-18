@@ -24,7 +24,7 @@ test("RO: harga kosong dianggap 0 (otomatis), baris kosong diabaikan", () => {
   });
   assert.ok(r.ok);
   if (r.ok) {
-    assert.deepEqual(r.children.items, [{ product_id: U2, qty: 12.5, unit_price: 0, notes: null }]);
+    assert.deepEqual(r.children.items, [{ product_id: U2, qty: 12.5, unit_price: 0, cut_type: null, packaging: null, notes: null }]);
     assert.equal(r.header.delivery_date, null);
   }
 });

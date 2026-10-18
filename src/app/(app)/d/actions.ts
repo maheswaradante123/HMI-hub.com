@@ -117,7 +117,7 @@ export async function pullReceivables(): Promise<PullResult> {
   return { recv: (data ?? []).map((r: { name: string; amount: number | string }) => ({ name: r.name, amount: Number(r.amount) })) };
 }
 
-export type PrItemPull = { pr_item_id: string; pr_number: string; pr_status: string; item_name: string; qty: number; unit: string; price: number };
+export type PrItemPull = { pr_item_id: string; pr_number: string; pr_status: string; item_name: string; qty: number; unit: string; price: number; ac: string; code: string };
 // Item Purchase Request yang bisa ditarik ke Cash Payment Journal.
 export async function pullPrItems(): Promise<{ error?: string; items?: PrItemPull[] }> {
   const session = await getSession();
@@ -126,5 +126,5 @@ export async function pullPrItems(): Promise<{ error?: string; items?: PrItemPul
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("cpj_pullable_pr_items");
   if (error) return { error: dbMessage(error) };
-  return { items: (data ?? []).map((r: Record<string, unknown>) => ({ pr_item_id: String(r.pr_item_id), pr_number: String(r.pr_number ?? ""), pr_status: String(r.pr_status), item_name: String(r.item_name), qty: Number(r.qty), unit: String(r.unit ?? ""), price: Number(r.price) })) };
+  return { items: (data ?? []).map((r: Record<string, unknown>) => ({ pr_item_id: String(r.pr_item_id), pr_number: String(r.pr_number ?? ""), pr_status: String(r.pr_status), item_name: String(r.item_name), qty: Number(r.qty), unit: String(r.unit ?? ""), price: Number(r.price), ac: String(r.ac ?? "OPR"), code: String(r.code ?? "") })) };
 }

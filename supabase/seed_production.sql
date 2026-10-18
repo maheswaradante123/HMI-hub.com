@@ -162,6 +162,10 @@ select pg_temp.g('ACCOUNTING','report','{view,export}');
 -- Persetujuan PR hanya Owner (kolom Approve di matriks)
 delete from public.role_permissions rp using public.roles r, public.permissions p
  where rp.role_id=r.id and rp.permission_id=p.id and r.code<>'OWNER' and p.action='approve' and p.module='purchase_request';
+-- PR per barang (migrasi 0021): Accounting melihat semua PR; Purchasing dan Accounting boleh unduh PDF/Excel PR
+select pg_temp.g('ACCOUNTING','purchase_request_all','{view}');
+select pg_temp.g('PURCHASING','purchase_request','{export}');
+select pg_temp.g('ACCOUNTING','purchase_request','{export}');
 
 
 -- Qurban Cerdas: izin awal (sama dengan migrasi 0012; aman dijalankan ulang).

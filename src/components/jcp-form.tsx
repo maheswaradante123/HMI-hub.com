@@ -45,10 +45,10 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
     const used = new Set(lines.map((l) => l.pr_item_id).filter(Boolean));
     const items = (res.items ?? []).filter((x) => !used.has(x.pr_item_id));
     setPull(items); setPick(new Set(items.map((x) => x.pr_item_id)));
-    if (!items.length) setMsg("Tidak ada item Purchase Request yang siap ditarik (harus berstatus Disetujui, Dipesan atau Diterima dan belum ada di jurnal lain).");
+    if (!items.length) setMsg("Tidak ada item Purchase Request yang siap ditarik (harus berstatus Approved, Order atau Received dan belum ada di jurnal lain).");
   });
   const addPicked = () => {
-    const add = (pull ?? []).filter((x) => pick.has(x.pr_item_id)).map((x) => ({ ...blank(h.journal_date), description: x.item_name, price: x.price ? fmtIn(x.price) : "", qty: fmtQ(x.qty), unit: x.unit, pr_item_id: x.pr_item_id }));
+    const add = (pull ?? []).filter((x) => pick.has(x.pr_item_id)).map((x) => ({ ...blank(h.journal_date), ac: x.ac, code: x.code, description: x.item_name, price: x.price ? fmtIn(x.price) : "", qty: fmtQ(x.qty), unit: x.unit, pr_item_id: x.pr_item_id }));
     const kept = lines.filter((l) => l.description.trim() || l.price.trim());
     setLines([...kept, ...add]); setPull(null); setMsg(`${add.length} item ditambahkan dari Purchase Request.`);
   };

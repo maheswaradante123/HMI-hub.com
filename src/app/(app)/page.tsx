@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     s = (data ?? {}) as Summary;
   }
   const cards: { key: keyof Summary; label: string; href: string; money?: boolean; warn?: (n: number) => boolean }[] = [
-    { key: "pr_waiting", label: "PR menunggu persetujuan", href: "/purchase-request?status=SUBMITTED", warn: (n) => n > 0 },
+    { key: "pr_waiting", label: "PR menunggu persetujuan", href: "/purchase-request?tab=item&status=SUBMITTED", warn: (n) => n > 0 },
     { key: "prod_waiting", label: "Production Order menunggu persetujuan", href: "/d/prod?status=SUBMITTED", warn: (n) => n > 0 },
     { key: "low_stock", label: "Item stok menipis", href: "/stok?hanya=menipis", warn: (n) => n > 0 },
     { key: "ro_open", label: "RO terkonfirmasi (belum selesai)", href: "/d/ro?status=CONFIRMED" },

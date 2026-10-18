@@ -14,8 +14,8 @@ declare
 begin
   delete from public.user_permission_overrides;
   select id into v_unit from public.units limit 1;
-  insert into public.purchase_requests (requester_id, reason, status) values (own::uuid, 'pakan', 'APPROVED') returning id into v_pr;
-  insert into public.pr_items (pr_id, line_no, item_name, qty, unit_id, estimated_price) values (v_pr, 1, 'Konsentrat', 140, v_unit, 200000) returning id into v_item;
+  insert into public.purchase_requests (requester_id, reason, status) values (own::uuid, 'pakan', 'OPEN') returning id into v_pr;
+  insert into public.pr_items (pr_id, line_no, item_name, qty, unit, estimated_price, requester_id, status) values (v_pr, 1, 'Konsentrat', 140, 'sak', 200000, own::uuid, 'APPROVED') returning id into v_item;
 
   -- nomor mingguan: 6 April 2026 (Senin) = minggu ke-2 April; 1 April 2026 = minggu ke-1
   perform pg_temp.u(acc);
@@ -66,17 +66,17 @@ begin
       jsonb_build_object('trans_date','2026-04-05','ac','OPR','code','BO','description','Bensin','price',30000,'qty',1,'unit','pcs','real_price',20000,'real_qty',1))));
   assert (select real_price from public.cash_journal_lines where journal_id = v_j and line_no = 1) = 198500, 'realisasi tersimpan';
 
-  -- realisasi: PR RECEIVED menjadi PAID
-  reset role; update public.purchase_requests set status = 'RECEIVED' where id = v_pr; perform pg_temp.u(acc);
+  -- realisasi: barang PR yang RECEIVED menjadi CLOSED
+  reset role; update public.pr_items set status = 'RECEIVED' where id = v_item; perform pg_temp.u(acc);
   perform public.doc_change_status('JCP', v_j, 'REALIZED');
   assert (select realized_on from public.cash_journals where id = v_j) is not null, 'tanggal realisasi tercatat';
-  assert (select status from public.purchase_requests where id = v_pr) = 'PAID', 'PR menjadi PAID';
+  assert (select status from public.pr_items where id = v_item) = 'CLOSED', 'barang PR menjadi CLOSED';
   assert pg_temp.err(format($q$select public.save_doc('JCP', %L, jsonb_build_object('notes','x'))$q$, v_j)) = '55000', 'direalisasi: terkunci';
 
-  -- batal memerlukan alasan dan izin hapus; PR kembali RECEIVED
+  -- batal memerlukan alasan dan izin hapus; barang PR kembali RECEIVED
   assert pg_temp.err(format($q$select public.doc_change_status('JCP', %L, 'VOID')$q$, v_j)) = '22023', 'alasan wajib';
   perform public.doc_change_status('JCP', v_j, 'VOID', 'salah');
-  assert (select status from public.purchase_requests where id = v_pr) = 'RECEIVED', 'PR kembali RECEIVED';
+  assert (select status from public.pr_items where id = v_item) = 'RECEIVED', 'barang PR kembali RECEIVED';
   select count(*) into v_cnt from public.cpj_pullable_pr_items() where pr_item_id = v_item;
   assert v_cnt = 1, 'item PR bisa ditarik lagi setelah jurnal batal';
 
