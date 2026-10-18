@@ -116,3 +116,15 @@ export async function pullReceivables(): Promise<PullResult> {
   if (error) return { error: dbMessage(error) };
   return { recv: (data ?? []).map((r: { name: string; amount: number | string }) => ({ name: r.name, amount: Number(r.amount) })) };
 }
+
+export type PrItemPull = { pr_item_id: string; pr_number: string; pr_status: string; item_name: string; qty: number; unit: string; price: number };
+// Item Purchase Request yang bisa ditarik ke Cash Payment Journal.
+export async function pullPrItems(): Promise<{ error?: string; items?: PrItemPull[] }> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("cpj_journal", "create") && !session.can("cpj_journal", "edit")) return { error: "Anda tidak memiliki izin." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cpj_pullable_pr_items");
+  if (error) return { error: dbMessage(error) };
+  return { items: (data ?? []).map((r: Record<string, unknown>) => ({ pr_item_id: String(r.pr_item_id), pr_number: String(r.pr_number ?? ""), pr_status: String(r.pr_status), item_name: String(r.item_name), qty: Number(r.qty), unit: String(r.unit ?? ""), price: Number(r.price) })) };
+}

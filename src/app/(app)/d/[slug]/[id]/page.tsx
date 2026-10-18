@@ -8,9 +8,10 @@ import { DocStatusBadge } from "@/components/doc-status-badge";
 import { DocActions, PrintButton } from "@/components/doc-actions";
 import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { DocFlow, DoSteps } from "@/components/doc-flow";
-import { cellText, fmtQty, fmtRupiah, isNumericKind, fmtDateTime } from "@/lib/docs/format";
+import { cellText, fmtDate, fmtQty, fmtRupiah, isNumericKind, fmtDateTime } from "@/lib/docs/format";
 import type { Rule } from "@/lib/docs/rules";
 import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
+import { JCP_FLAG_BG, JCP_FLAGS, JCP_SUMMARY_LABELS, jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
 import { loadNames } from "@/lib/pr/data";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,6 +94,13 @@ export default async function DocDetailPage({
           <a href={`/d/${slug}/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
+      {slug === "jcp" && session.can("cpj_journal", "export") && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/jcp/${id}/export`} title={`Cash Payment Journal ${jcpPrintNumber(String(doc.doc_number), status)}`} xlsx={`/d/jcp/${id}/export`} />
+          <a href={`/d/jcp/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+          <a href={`/d/jcp/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
+        </p>
+      )}
       {slug === "pmt" && session.can("store_income", "export") && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
           <PdfPreview href={`/d/pmt/${id}/export`} title={`Pemasukan Toko ${String(doc.doc_number)}`} xlsx={`/d/pmt/${id}/export`} />
@@ -153,7 +161,55 @@ export default async function DocDetailPage({
         </section>
       )}
 
+      {slug === "jcp" && (() => {
+        const rows = ((doc.cash_journal_lines as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
+        const done = status === "REALIZED";
+        const nums = rows.map((r) => ({ price: Number(r.price), qty: Number(r.qty), flag: String(r.flag), real_price: r.real_price as number | null, real_qty: r.real_qty as number | null }));
+        const t = jcpTotals(nums, done);
+        const flagLabel = Object.fromEntries(JCP_FLAGS.map((f) => [f.value, f.label]));
+        return (
+          <section className="mt-8" aria-labelledby="t-jcp">
+            <h2 id="t-jcp" className="text-2xl font-bold">Baris jurnal</h2>
+            <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface">
+              <table className="w-full min-w-[1100px] text-left">
+                <thead className="border-b border-line bg-background">
+                  <tr>{["No", "Tanggal", "A/C", "Kode", "Description", "Price", "Qty", "Unit", "Amount", "Real. Price", "Real. Qty", "Real. Amount", "Bukti"].map((h, i) => <th key={h} scope="col" className={`px-3 py-3 font-semibold ${i >= 5 && i !== 7 && i !== 12 ? "text-right" : ""}`}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const ra = realAmount(nums[i], done);
+                    return (
+                      <tr key={String(r.id)} className={`border-b border-line last:border-0 ${JCP_FLAG_BG[String(r.flag)] ?? ""}`} title={flagLabel[String(r.flag)]}>
+                        <td className="px-3 py-2 text-muted">{i + 1}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.trans_date ? fmtDate(String(r.trans_date)) : "-"}</td>
+                        <td className="px-3 py-2 font-semibold">{String(r.ac ?? "")}</td>
+                        <td className="px-3 py-2 font-semibold">{String(r.code ?? "")}</td>
+                        <td className="px-3 py-2">{String(r.description)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtRupiah(Number(r.price))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtQty(Number(r.qty))}</td>
+                        <td className="px-3 py-2">{String(r.unit ?? "")}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmtRupiah(planAmount(nums[i]))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{r.real_price === null ? "-" : fmtRupiah(Number(r.real_price))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{r.real_qty === null ? "-" : fmtQty(Number(r.real_qty))}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{ra === null ? "-" : fmtRupiah(ra)}</td>
+                        <td className="px-3 py-2">{String(r.proof ?? "")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-sm text-muted">Warna baris: kuning = terbayarkan oleh non rekening CPJ, oranye = over budget CPJ sebelumnya, merah = permintaan ditolak, biru muda = uang masuk.</p>
+            <dl className="mt-4 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
+              {JCP_SUMMARY_LABELS.map(([k, label]) => <div key={k}><dt className="text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{fmtRupiah(t[k])}</dd></div>)}
+            </dl>
+            {status === "ACC" && <p className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">Dana sudah di-ACC Owner. Klik “Ubah draf” untuk mengisi harga, qty, dan bukti realisasi, lalu pilih “Selesaikan realisasi”.</p>}
+          </section>
+        );
+      })()}
+
       {cfg.children.map((c) => {
+        if (slug === "jcp") return null;
         const rows = ((doc[c.table] as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
         if (rows.length === 0 && !c.required) return null;
         const totalVal = c.total ? rows.reduce((s, r) => s + Number(r[c.total!.qty]) * Number(r[c.total!.price]), 0) : null;
@@ -182,7 +238,7 @@ export default async function DocDetailPage({
       })}
 
       <div className="no-print mt-8 flex flex-wrap gap-3">
-        {canEdit && <Link href={`/d/${slug}/${id}/ubah`} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Ubah draf</Link>}
+        {canEdit && <Link href={`/d/${slug}/${id}/ubah`} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">{status === "ACC" ? "Isi realisasi" : "Ubah draf"}</Link>}
         {next.map((n) => <Link key={n.label} href={n.href(id)} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">{n.label}</Link>)}
         <PrintButton />
       </div>

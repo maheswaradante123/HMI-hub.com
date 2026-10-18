@@ -6,6 +6,9 @@ import { buatInvoiceTokoPdf } from "@/lib/export/invoice-toko-pdf.mjs";
 import { buatPemasukanTokoPdf } from "@/lib/export/pmt-pdf.mjs";
 import { buatPemasukanTokoXlsx } from "@/lib/export/pmt-xlsx.mjs";
 import { pmtTotals } from "@/lib/docs/pmt";
+import { buatCpjPdf } from "@/lib/export/jcp-pdf.mjs";
+import { buatCpjXlsx } from "@/lib/export/jcp-xlsx.mjs";
+import { jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
 import { buatPackingListPdf, buatPackingListXlsx } from "@/lib/export/pl-pdf.mjs";
 import { buatSuratJalanPdf, buatSuratJalanXlsx } from "@/lib/export/do-pdf.mjs";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
@@ -29,10 +32,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string; i
 
 async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "jcp" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : "invoice";
+  const mod = slug === "jcp" ? "cpj_journal" : slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -131,6 +134,29 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     };
     if (!pdf) return xlsxResponse(await buatProdXlsx(poData), po.doc_number);
     return new NextResponse((await buatProdPdf(poData)) as BodyInit, { headers: pdfHeaders(po.doc_number) });
+  }
+  if (slug === "jcp") {
+    const { data: j } = await supabase
+      .from("cash_journals")
+      .select("doc_number, journal_date, status, initiator_name, initiator_title, approver_name, approver_title, pay_note, notes, cash_journal_lines(line_no, trans_date, ac, code, description, price, qty, unit, flag, real_price, real_qty, proof)")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!j) return NextResponse.json({ error: "Jurnal tidak ditemukan." }, { status: 404 });
+    type JL = { line_no: number; trans_date: string | null; ac: string | null; code: string | null; description: string; price: number; qty: number; unit: string | null; flag: string; real_price: number | null; real_qty: number | null; proof: string | null };
+    const ls = [...((j.cash_journal_lines as unknown as JL[]) ?? [])].sort((a, b) => a.line_no - b.line_no);
+    const nums = ls.map((l) => ({ price: Number(l.price), qty: Number(l.qty), flag: l.flag, real_price: l.real_price === null ? null : Number(l.real_price), real_qty: l.real_qty === null ? null : Number(l.real_qty) }));
+    const data = {
+      nomor: jcpPrintNumber(j.doc_number, j.status), tanggal: j.journal_date, status: j.status,
+      initiatorNama: j.initiator_name ?? "", initiatorJabatan: j.initiator_title ?? "", approverNama: j.approver_name ?? "", approverJabatan: j.approver_title ?? "",
+      payNote: j.pay_note ?? "", note: j.notes ?? "", ttdInitiator: /arfan/i.test(j.initiator_name ?? ""),
+      baris: ls.map((l, i) => ({ tanggal: l.trans_date, ac: l.ac ?? "", kode: l.code ?? "", desc: l.description, price: nums[i].price, qty: nums[i].qty, unit: l.unit ?? "", flag: l.flag, realPrice: nums[i].real_price, realQty: nums[i].real_qty, bukti: l.proof ?? "" })),
+      hitung: {
+        planAmount: (l: { price: number; qty: number }) => planAmount({ price: l.price, qty: l.qty, flag: "NONE" }),
+        realAmount: (l: { price: number; qty: number; flag: string; realPrice: number | null; realQty: number | null }, done: boolean) => realAmount({ price: l.price, qty: l.qty, flag: l.flag, real_price: l.realPrice, real_qty: l.realQty }, done),
+      },
+      total: jcpTotals(nums, j.status === "REALIZED"),
+    };
+    if (pdf) return new NextResponse((await buatCpjPdf(data)) as BodyInit, { headers: pdfHeaders(data.nomor) });
+    return xlsxResponse(await buatCpjXlsx(data), data.nomor);
   }
   if (slug === "pmt") {
     const { data: rep } = await supabase

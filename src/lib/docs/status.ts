@@ -4,6 +4,7 @@ export const DOC_STATUS_LABEL: Record<string, string> = {
   PACKED: "Sudah dikemas", DELIVERED: "Terkirim", FINAL: "Final", VOID: "Dibatalkan",
   ISSUED: "Terbit", PARTIAL: "Dibayar sebagian", PAID: "Lunas", POSTED: "Terposting",
   SENT: "Dikirim", RECEIVED: "Diterima", ARCHIVED: "Terarsip",
+  WAITING: "Menunggu ACC", ACC: "ACC Owner", REALIZED: "Direalisasi",
 };
 
 export const DOC_STATUS_STYLE: Record<string, string> = {
@@ -14,6 +15,9 @@ export const DOC_STATUS_STYLE: Record<string, string> = {
   SENT: "bg-blue-100 text-blue-900",
   RECEIVED: "bg-green-100 text-green-900",
   ARCHIVED: "bg-emerald-200 text-emerald-950",
+  WAITING: "bg-amber-100 text-amber-900",
+  ACC: "bg-blue-100 text-blue-900",
+  REALIZED: "bg-emerald-200 text-emerald-950",
   ISSUED: "bg-blue-100 text-blue-900",
   PARTIAL: "bg-amber-100 text-amber-900",
   APPROVED: "bg-green-100 text-green-900",

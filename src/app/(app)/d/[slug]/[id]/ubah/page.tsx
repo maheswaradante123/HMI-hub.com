@@ -5,6 +5,7 @@ import { Forbidden } from "@/components/forbidden";
 import { DocForm } from "@/components/doc-form";
 import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { PmtForm } from "@/components/pmt-form";
+import { JcpForm } from "@/components/jcp-form";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
@@ -61,6 +62,14 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Production Order {String(doc.doc_number)}</h1>
         <PoForm id={id} initial={{ header: header as Record<string, string>, items: children.items ?? [] }} ros={ros} products={lists.products} today={String(doc.order_date)} number={String(doc.doc_number)} cancelHref={`/d/prod/${id}`} />
+      </div>
+    );
+  }
+  if (slug === "jcp") {
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah Cash Payment Journal {String(doc.doc_number)}</h1>
+        <JcpForm id={id} status={String(doc.status)} initial={{ header: header as Record<string, string>, lines: children.lines ?? [] }} number={String(doc.doc_number)} cancelHref={`/d/jcp/${id}`} />
       </div>
     );
   }

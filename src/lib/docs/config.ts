@@ -217,6 +217,25 @@ export const CONFIGS: Record<string, DocConfig> = {
     children: [],
     statuses: ["DRAFT", "SENT", "RECEIVED", "ARCHIVED", "VOID"], prefill: ["pl"],
   },
+  jcp: {
+    type: "JCP", slug: "jcp", module: "cpj_journal", title: "Cash Payment Journal", singular: "Cash Payment Journal",
+    intro: "Jurnal pengeluaran kas mingguan: rencana dan realisasi. Baris bisa ditarik dari Purchase Request atau diketik. Setelah Owner meng-ACC, kolom rencana terkunci dan Accounting mengisi realisasi.",
+    table: "cash_journals", select: "*",
+    columns: [c("Nomor", "doc_number"), c("Tanggal", "journal_date", "date"), c("Tgl ACC", "approved_on", "date"), c("Tgl realisasi", "realized_on", "date"), c("Status", "status", "status")],
+    header: [f("journal_date", "Tanggal jurnal", "date", { required: true, today: true }), f("initiator_name", "Initiator (nama)", "text"), f("initiator_title", "Initiator (jabatan)", "text"),
+      f("approver_name", "Approval (nama)", "text"), f("approver_title", "Approval (jabatan)", "text"), f("pay_note", "Keterangan pembayaran", "text"), notes],
+    summary: [c("Tanggal", "journal_date", "date"), c("Initiator", "initiator_name"), c("Jabatan initiator", "initiator_title"), c("Approval", "approver_name"), c("Jabatan approval", "approver_title"),
+      c("Keterangan pembayaran", "pay_note"), c("Tanggal ACC Owner", "approved_on", "date"), c("Tanggal realisasi", "realized_on", "date"), c("Catatan", "notes")],
+    children: [{
+      key: "lines", title: "Baris jurnal", table: "cash_journal_lines", fk: "journal_id", required: true, select: "*",
+      fields: [f("trans_date", "Tanggal transaksi", "date"), f("ac", "A/C", "text"), f("code", "Kode", "text"), f("description", "Description", "text", { required: true }),
+        f("price", "Price", "money", { blankAs0: true }), f("qty", "Qty", "qty", { required: true }), f("unit", "Unit", "text"),
+        f("flag", "Jenis baris", "select", { options: [{ value: "NONE", label: "Normal" }, { value: "NON_CPJ", label: "Terbayarkan oleh non rekening CPJ" }, { value: "OVER", label: "Over Budget CPJ Sebelumnya" }, { value: "REJECTED", label: "Permintaan ditolak" }, { value: "INCOMING", label: "Uang Masuk" }] }),
+        f("pr_item_id", "Item PR", "text"), f("real_price", "Realisasi price", "money"), f("real_qty", "Realisasi qty", "qty"), f("proof", "Attachment of proof", "text")],
+      columns: [c("Tanggal", "trans_date", "date"), c("A/C", "ac"), c("Kode", "code"), c("Description", "description"), c("Price", "price", "money"), c("Qty", "qty", "qty"), c("Unit", "unit")],
+    }],
+    statuses: ["DRAFT", "WAITING", "ACC", "REALIZED", "VOID"], prefill: [],
+  },
   so: {
     type: "SO", slug: "so", module: "stock_opname", title: "Stock Opname", singular: "Opname",
     intro: "Hitung fisik stok. Setelah disetujui Owner, selisih dengan stok sistem dikoreksi otomatis dan tercatat di riwayat mutasi.",
@@ -235,7 +254,7 @@ export const CONFIGS: Record<string, DocConfig> = {
 };
 
 // Status yang masih boleh diubah isiannya (selain DRAFT bawaan).
-export const EDITABLE_STATUSES: Record<string, string[]> = { do: ["DRAFT", "SENT", "RECEIVED"] };
+export const EDITABLE_STATUSES: Record<string, string[]> = { do: ["DRAFT", "SENT", "RECEIVED"], jcp: ["DRAFT", "ACC"] };
 export const editableIn = (slug: string, status: string) => (EDITABLE_STATUSES[slug] ?? ["DRAFT"]).includes(status);
 
 export const BY_SLUG = CONFIGS;

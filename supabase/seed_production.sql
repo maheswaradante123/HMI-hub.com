@@ -179,4 +179,6 @@ select pg_temp.gq('ACCOUNTING','store_income','{view,create,edit,delete,export}'
 select pg_temp.gq('MARKETING','delivery_order','{view,create,edit,export}');
 select pg_temp.gq('PRODUKSI','delivery_order','{view,create,edit,export}');
 select pg_temp.gq('ACCOUNTING','delivery_order','{view,export}');
+select pg_temp.gq('ACCOUNTING','cpj_journal','{view,create,edit,delete,export}');
+select pg_temp.gq('PURCHASING','cpj_journal','{view}');
 

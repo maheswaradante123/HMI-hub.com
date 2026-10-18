@@ -8,6 +8,8 @@ import { CONFIGS } from "@/lib/docs/config";
 import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
 import { PmtForm } from "@/components/pmt-form";
+import { JcpForm } from "@/components/jcp-form";
+import { JCP_DEFAULTS } from "@/lib/docs/jcp";
 import { InvForm } from "@/components/inv-form";
 import { PlForm } from "@/components/pl-form";
 import { PoForm } from "@/components/po-form";
@@ -65,6 +67,18 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
+      </div>
+    );
+  }
+
+  if (slug === "jcp") {
+    const today = todayJakarta();
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/jcp" className="underline">Cash Payment Journal</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">Cash Payment Journal Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Satu jurnal per minggu. Tarik item dari Purchase Request, tempel dari Excel, atau ketik manual.</p>
+        <JcpForm id="" status="DRAFT" initial={{ header: { journal_date: today, initiator_name: session.fullName, ...JCP_DEFAULTS, notes: "" }, lines: [] }} number="" cancelHref="/d/jcp" />
       </div>
     );
   }
