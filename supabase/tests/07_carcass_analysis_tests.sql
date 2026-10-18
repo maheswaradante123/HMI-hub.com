@@ -85,6 +85,7 @@ begin
      jsonb_build_object('items', jsonb_build_array(jsonb_build_object('non_carcass_type_id', v_jeroan, 'weight', 30, 'unit_price', 40000))));
   assert (select total_amount from public.noncarcass_sales where id = v_ncs) = 1200000, 'total non-karkas 1.2jt';
   perform public.doc_change_status('NCS', v_ncs, 'CONFIRMED');
+  assert pg_temp.err(format('select public.save_doc(''NCS'',null,jsonb_build_object(''customer_id'',%L,''cw_id'',%L),jsonb_build_object(''items'',jsonb_build_array(jsonb_build_object(''non_carcass_type_id'',%L,''weight'',1,''unit_price'',1000))))', v_jagal, v_cw, v_jeroan)) = '23505', 'satu nota aktif per sapi';
 
   -- analisa: supplier, jenis sapi, banyak sapi, non-karkas diketik, Total Biaya otomatis atau manual
   perform pg_temp.u(pur);

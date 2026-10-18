@@ -43,6 +43,7 @@ export async function loadDocRefs(supabase: Supa, fields: Field[], keep: string[
       q = q.is("deleted_at", null);
       if (f.refStatus?.length) q = q.in("status", f.refStatus);
     }
+    if (f.refWhere) q = q.eq(f.refWhere.column, f.refWhere.value);
     const { data } = await q;
     const rows = (data ?? []) as unknown as Row[];
     const have = new Set(rows.map((r) => String(r.id)));

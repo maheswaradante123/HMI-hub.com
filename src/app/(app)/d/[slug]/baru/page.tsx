@@ -98,6 +98,52 @@ export default async function NewDocPage({
     );
   }
 
+  if (slug === "ncs") {
+    // Satu nota untuk satu sapi: pilih sapi dulu (penimbangan karkas yang final), jenis dan berat terisi dari penimbangan itu.
+    const [{ data: cws }, { data: notas }] = await Promise.all([
+      supabase.from("carcass_weighings").select("id, doc_number, cow_number, weigh_date, suppliers(name), cw_items(non_carcass_type_id, weight)").eq("status", "FINAL").is("deleted_at", null).order("weigh_date", { ascending: false }).order("created_at", { ascending: false }).limit(100),
+      supabase.from("noncarcass_sales").select("id, doc_number, cw_id").neq("status", "VOID").is("deleted_at", null).not("cw_id", "is", null),
+    ]);
+    const notaOf = new Map((notas ?? []).map((n) => [n.cw_id as string, n]));
+    const chosen = pre.header.cw_id ? notaOf.get(pre.header.cw_id) : undefined;
+    if (!pre.header.cw_id || chosen) {
+      const rel = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+      return (
+        <div>
+          <p className="text-sm text-muted"><Link href="/d/ncs" className="underline">Penjualan Non-Karkas</Link> › Baru</p>
+          <h1 className="text-3xl font-bold">Nota Penjualan Non-Karkas Baru</h1>
+          <p className="mb-6 mt-1 text-muted">Pilih sapi yang non-karkasnya dijual ke pengepul. Satu nota untuk satu sapi.</p>
+          {chosen && <p role="alert" className="mb-4 rounded-md bg-warn-bg px-4 py-3">Sapi itu sudah punya nota <Link href={`/d/ncs/${chosen.id}`} className="font-semibold underline">{chosen.doc_number}</Link>. Batalkan nota tersebut bila perlu membuat ulang.</p>}
+          {(cws ?? []).length === 0 ? (
+            <p className="rounded-md border border-line bg-surface px-4 py-6">Belum ada Penimbangan Karkas berstatus Final.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+              <table className="w-full min-w-[720px] text-left text-lg">
+                <thead className="border-b border-line bg-background"><tr><th className="px-4 py-3 font-semibold">Kode sapi</th><th className="px-4 py-3 font-semibold">Tanggal timbang</th><th className="px-4 py-3 font-semibold">Supplier</th><th className="px-4 py-3 text-right font-semibold">Non-karkas</th><th className="px-4 py-3" /></tr></thead>
+                <tbody>
+                  {(cws ?? []).map((w) => {
+                    const non = (w.cw_items ?? []).filter((i) => i.non_carcass_type_id);
+                    const kg = non.reduce((t, i) => t + Number(i.weight), 0);
+                    const nota = notaOf.get(w.id);
+                    return (
+                      <tr key={w.id} className="border-b border-line last:border-0">
+                        <td className="px-4 py-3 font-semibold">{w.cow_number}</td>
+                        <td className="px-4 py-3">{fmtDate(w.weigh_date)}</td>
+                        <td className="px-4 py-3">{rel(w.suppliers)?.name ?? "-"}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{non.length ? `${non.length} item, ${kg.toLocaleString("id-ID", { maximumFractionDigits: 3 })} kg` : "-"}</td>
+                        <td className="px-4 py-3 text-right">{nota ? <Link href={`/d/ncs/${nota.id}`} className="text-muted underline">Sudah ada {nota.doc_number}</Link> : <Link href={`/d/ncs/baru?cw=${w.id}`} className="rounded-md border-2 border-brand px-4 py-1.5 font-semibold text-brand hover:bg-background">Buat nota</Link>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
   if (slug === "cw") {
     const lists = await loadCwLists(supabase);
     const initial = {

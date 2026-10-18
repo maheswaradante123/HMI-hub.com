@@ -13,6 +13,7 @@ export type Field = {
   required?: boolean;
   ref?: RefName;
   refStatus?: string[];       // hanya tampilkan dokumen berstatus ini
+  refWhere?: { column: string; value: string }; // hanya tampilkan master dengan kolom bernilai ini (mis. type pengepul)
   options?: { value: string; label: string }[];
   help?: string;
   today?: boolean;            // isi awal = hari ini (WIB)
