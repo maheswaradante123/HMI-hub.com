@@ -1,6 +1,6 @@
 // Membuat supabase/data/stok_awal_daging.sql dari supabase/data/stok_awal_daging.tsv
 // (salinan data aplikasi lama La Mitra: kode, nama, kategori lama, stok, satuan).
-// Aturan: semua stok = gram → kg (÷1000) KECUALI Otak (pcs, angka apa adanya);
+// Aturan: semua stok = gram → kg (÷1000) KECUALI Otak (bawaan kg juga; saklar v_otak_kg di SQL);
 // kategori = awalan kode terbanyak per jenis item; lot = kode sapi.
 import fs from "node:fs";
 const dir = new URL("../supabase/data/", import.meta.url);
@@ -58,13 +58,13 @@ const sql = `-- ================================================================
 -- UBAH 2 BARIS INI SEBELUM MENJALANKAN:
 --   v_date : tanggal stok dihitung ("cut-off"), tidak boleh di masa depan
 --   v_wh   : kode gudang tujuan
---   v_otak_kg : false = Otak dihitung PCS (angka apa adanya); true = Otak dihitung KG (angka gram ÷ 1000)
+--   v_otak_kg : true (bawaan) = Otak gram → kg (÷1000); false = Otak dihitung PCS apa adanya
 -- ============================================================================
 do $mig$
 declare
   v_date  date := (now() at time zone 'Asia/Jakarta')::date;   -- << tanggal cut-off
   v_wh    text := 'GD-TOKO';                                   -- << kode gudang
-  v_otak_kg boolean := false;                                  -- << true bila angka Otak sebenarnya gram
+  v_otak_kg boolean := true;                                   -- << true = Otak dalam gram (jadi kg); false = pcs
   v_whid  uuid; v_pid uuid; v_cat uuid; v_unit uuid; v_code text; v_i int;
   r record; n_new int := 0; n_old int := 0; n_mov int := 0;
   c_marker constant text := 'Migrasi stok awal La Mitra';
