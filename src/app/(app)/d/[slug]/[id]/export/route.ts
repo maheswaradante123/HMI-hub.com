@@ -17,6 +17,7 @@ import { buatSuratJalanPdf, buatSuratJalanXlsx } from "@/lib/export/do-pdf.mjs";
 import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
 import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
+import { docUnit } from "@/lib/docs/format";
 
 export const runtime = "nodejs";
 
@@ -65,7 +66,7 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     const per = new Map<string, { desc: string; jenis: string; qty: number; unit: string }>();
     for (const i of [...(pl?.pl_items ?? [])].sort((a, b) => a.line_no - b.line_no)) {
       const name = i.products?.name ?? "";
-      const cur = per.get(name) ?? { desc: name, jenis: i.products?.product_categories?.name ?? "Daging", qty: 0, unit: i.products?.units?.name ?? "Kg" };
+      const cur = per.get(name) ?? { desc: name, jenis: i.products?.product_categories?.name ?? "Daging", qty: 0, unit: docUnit(i.products?.units?.name) || "Kg" };
       cur.qty = Math.round((cur.qty + Number(i.qty)) * 1000) / 1000;
       per.set(name, cur);
     }
@@ -109,7 +110,7 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     const roData = {
       nomor: ro.doc_number, tanggal: ro.order_date, pemesan: ro.orderer_name || cust, alamat: ro.delivery_address ?? "", telepon: ro.phone ?? "",
       tglKirim: ro.delivery_date, waktuKirim: ro.delivery_time ?? "",
-      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "", harga: Number(i.unit_price) })),
+      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: docUnit(i.products?.units?.name), potong: i.cut_type ?? "", kemas: i.packaging ?? "", harga: Number(i.unit_price) })),
       bayar: ro.payment_method ?? "", kirim: ro.delivery_method ?? "", catatan: ro.notes ?? "", pembuat, jabatan: "Marketing",
       tandaTangan: /syifa/i.test(pembuat),
     };
@@ -131,7 +132,7 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     const poData = {
       nomor: po.doc_number, tanggal: po.order_date, customer: ro?.customers?.name ?? "", telepon: ro?.phone ?? "",
       leadTime: leadTime(ro?.order_date ?? po.order_date, tglKirimRo), roNomor: ro?.doc_number ?? "", tglOrder: ro?.order_date ?? po.order_date, tglKirim: kirimTeks,
-      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", potong: i.cut_type ?? "", kemas: i.packaging ?? "" })),
+      baris: items.map((i) => ({ nama: i.products?.name ?? "", qty: Number(i.qty), unit: docUnit(i.products?.units?.name), potong: i.cut_type ?? "", kemas: i.packaging ?? "" })),
       metode: ro?.delivery_method ?? "", jadwal: po.send_note || kirimTeks, alamat: po.delivery_address || ro?.delivery_address || "",
       pic: po.pic ?? "", kodeSapi: po.cow_codes ?? "", catatan: po.notes ?? "",
     };
@@ -225,7 +226,7 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
 
   const items = [...((inv.inv_items as unknown as { line_no: number; qty: number; unit_price: number; description: string | null; products: { name: string; units: { name: string } | null } | null }[]) ?? [])]
     .sort((a, b) => a.line_no - b.line_no);
-  const baris = items.map((i) => ({ desc: i.description || i.products?.name || "", qty: Number(i.qty), unit: i.products?.units?.name ?? "", harga: Number(i.unit_price) }));
+  const baris = items.map((i) => ({ desc: i.description || i.products?.name || "", qty: Number(i.qty), unit: docUnit(i.products?.units?.name), harga: Number(i.unit_price) }));
   if (Number(inv.tax_amount) > 0) baris.push({ desc: `PPN ${Number(inv.tax_rate)}%`, qty: 1, unit: "", harga: Number(inv.tax_amount) });
 
   const cust = (inv.customers as unknown as { name: string } | null)?.name ?? "";

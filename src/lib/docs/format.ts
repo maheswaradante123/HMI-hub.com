@@ -21,10 +21,14 @@ export const fmtDate = (d: string) => !d ? "" :
 export const fmtDateTime = (d: string) =>
   new Date(d).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
+// Jumlah di dokumen (RO, PO, CW, PL, invoice) selalu kg; produk bersatuan Gram hanya berbeda di stok.
+export const docUnit = (name?: string | null) => (name === "Gram" ? "Kg" : name ?? "");
+
 // Teks tampilan untuk satu sel. Status ditangani oleh komponen badge, bukan di sini.
 export function cellText(col: Col, row: unknown): string {
   const v = getPath(row, col.path);
   if (v === null || v === undefined || v === "") return "-";
+  if (col.path.endsWith("units.name")) return docUnit(String(v));
   switch (col.kind) {
     case "money": return fmtRupiah(Number(v));
     case "qty": return fmtQty(Number(v));

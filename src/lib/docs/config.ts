@@ -7,7 +7,7 @@ const c = (label: string, path: string, kind?: Col["kind"]): Col => ({ label, pa
 
 export const RO_PAYMENT = ["Tempo", "Transfer", "Cash", "QRIS"];
 export const RO_DELIVERY = ["Delivery", "Pick Up di Toko"];
-export const RO_PACK = ["Vacuum 1 Kg", "Vacuum 4 Kg", "Tray + Wrap", "Wrap + Vacuum 4 Kg"];
+export const RO_PACK = ["Vacuum 1 Kg", "Vacuum 3 Kg", "Vacuum 4 Kg", "Tray + Wrap", "Wrap + Vacuum 4 Kg", "Wrap"];
 const notes = f("notes", "Catatan", "textarea");
 const productRow = ref("product_id", "Produk", "products", { required: true });
 const qtyRow = f("qty", "Jumlah", "qty", { required: true });

@@ -58,7 +58,7 @@ begin
   select count(*) into n from public.products;  assert n = 10, 'marketing lihat produk, dapat ' || n;
   select count(*) into n from public.suppliers; assert n = 0, 'marketing tidak boleh lihat supplier';
   select count(*) into n from public.accounts;  assert n = 0, 'marketing tidak boleh lihat rekening';
-  select count(*) into n from public.units;     assert n = 6, 'semua user lihat satuan';
+  select count(*) into n from public.units;     assert n = 8, 'semua user lihat satuan';
   begin
     insert into public.products (code,name,product_type,unit_id)
     select 'MKT-P','P','RESELLER',id from public.units limit 1;
