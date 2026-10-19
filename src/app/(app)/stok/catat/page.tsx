@@ -10,7 +10,7 @@ export default async function RecordStockPage({ searchParams }: { searchParams: 
   if (!session.can("stock", "create")) return <Forbidden roleName={session.roleName} what="pencatatan stok" />;
   const supabase = await createClient();
   const [{ data: products }, { data: warehouses }, { data: lotRows }] = await Promise.all([
-    supabase.from("products").select("id, code, name").eq("is_active", true).order("name"),
+    supabase.from("products").select("id, code, name, units(code, name)").eq("is_active", true).order("name"),
     supabase.from("warehouses").select("id, name").eq("is_active", true).order("name"),
     supabase.from("v_stock_lots").select("lot").not("lot", "is", null).gt("qty_rest", 0).limit(2000),
   ]);
@@ -18,7 +18,10 @@ export default async function RecordStockPage({ searchParams }: { searchParams: 
     <div>
       <h1 className="mb-6 text-3xl font-bold">Catat transaksi stok</h1>
       <StockForm
-        products={(products ?? []).map((p) => ({ id: p.id as string, label: `${p.code} - ${p.name}` }))}
+        products={(products ?? []).map((p) => {
+          const u = Array.isArray(p.units) ? p.units[0] : p.units;
+          return { id: p.id as string, label: `${p.code} - ${p.name}`, unit: String((u as { code?: string } | null)?.code ?? ""), unitName: String((u as { name?: string } | null)?.name ?? "") };
+        })}
         warehouses={(warehouses ?? []) as { id: string; name: string }[]}
         lots={[...new Set((lotRows ?? []).map((l) => String(l.lot)))].sort()}
         canCost={session.can("pricing_cost", "view")}

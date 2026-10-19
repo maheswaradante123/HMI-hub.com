@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { dbMessage } from "@/lib/docs/errors";
-import { parseQty } from "@/lib/docs/parse";
+import { parseGram, parseQty } from "@/lib/docs/parse";
 import { isRealDate, parseMoney } from "@/lib/pricing/schema";
 
 export type StockFormState = { error?: string; values?: Record<string, string> };
@@ -22,8 +22,12 @@ export async function recordMovement(_prev: StockFormState, formData: FormData):
   if (!UUID.test(values.product)) return { error: "Produk belum dipilih.", values };
   if (!UUID.test(values.warehouse)) return { error: "Gudang belum dipilih.", values };
   if (!TYPES.includes(values.type)) return { error: "Jenis pencatatan belum dipilih.", values };
-  const qty = parseQty(values.qty);
-  if (typeof qty !== "number" || qty <= 0) return { error: "Jumlah harus angka lebih dari 0 (contoh 12,5).", values };
+  const supabase = await createClient();
+  const { data: prod } = await supabase.from("products").select("units(code)").eq("id", values.product).maybeSingle();
+  const unitRel = prod?.units as { code: string } | { code: string }[] | null | undefined;
+  const isGram = (Array.isArray(unitRel) ? unitRel[0]?.code : unitRel?.code) === "GRAM";
+  const qty = isGram ? parseGram(values.qty) : parseQty(values.qty);
+  if (typeof qty !== "number" || qty <= 0) return { error: isGram ? "Jumlah dalam gram harus bilangan bulat lebih dari 0, tanpa koma (contoh 14620 atau 14.620)." : "Jumlah harus angka lebih dari 0 (contoh 12,5).", values };
   let cost: number | null = null;
   if (values.cost) {
     const c = parseMoney(values.cost);
@@ -35,7 +39,6 @@ export async function recordMovement(_prev: StockFormState, formData: FormData):
   if (values.date && !isRealDate(values.date)) return { error: "Tanggal tidak benar.", values };
   if ((values.type === "ADJUST_IN" || values.type === "ADJUST_OUT") && !values.note) return { error: "Penyesuaian wajib disertai alasan.", values };
 
-  const supabase = await createClient();
   const { error } = await supabase.rpc("record_stock_movement", {
     p_product: values.product, p_wh: values.warehouse, p_type: values.type, p_qty: qty,
     p_cost: values.type === "IN_PURCHASE" ? cost : null, p_note: values.note || null, p_date: values.date || null, p_lot: values.lot || null,

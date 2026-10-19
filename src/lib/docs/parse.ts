@@ -4,6 +4,14 @@ import type { Field, DocConfig, Child } from "./types.ts";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Jumlah/berat: titik atau koma sebagai desimal (maksimal 3 angka), tanpa pemisah ribuan.
+/** Jumlah dalam gram: bilangan bulat; titik/spasi dianggap pemisah ribuan ("14.620" = 14620). Koma ditolak. */
+export function parseGram(raw: string): number | null | "invalid" {
+  const t = raw.replace(/[\s.]/g, "");
+  if (t === "") return null;
+  if (!/^\d{1,9}$/.test(t)) return "invalid";
+  return Number(t);
+}
+
 export function parseQty(raw: string): number | null | "invalid" {
   const t = raw.replace(/\s/g, "");
   if (t === "") return null;

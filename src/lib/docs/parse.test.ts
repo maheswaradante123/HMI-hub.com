@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseQty, parseDoc, lineTotal } from "./parse.ts";
+import { parseQty, parseGram, parseDoc, lineTotal } from "./parse.ts";
 import { CONFIGS } from "./config.ts";
 
 test("parseQty menerima desimal titik/koma dan menolak format ribuan", () => {
@@ -11,6 +11,16 @@ test("parseQty menerima desimal titik/koma dan menolak format ribuan", () => {
   assert.equal(parseQty("-3"), "invalid");
   assert.equal(parseQty("1,2345"), "invalid");
   assert.equal(parseQty("abc"), "invalid");
+});
+
+test("parseGram: bilangan bulat gram, titik = pemisah ribuan, koma ditolak", () => {
+  assert.equal(parseGram("14620"), 14620);
+  assert.equal(parseGram("14.620"), 14620);
+  assert.equal(parseGram(" 1.234.567 "), 1234567);
+  assert.equal(parseGram(""), null);
+  assert.equal(parseGram("12,5"), "invalid");
+  assert.equal(parseGram("-5"), "invalid");
+  assert.equal(parseGram("abc"), "invalid");
 });
 
 const ro = CONFIGS.ro;
