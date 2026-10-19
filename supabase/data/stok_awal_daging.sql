@@ -13,11 +13,23 @@ declare
   v_date  date := (now() at time zone 'Asia/Jakarta')::date;   -- << tanggal cut-off
   v_wh    text := 'GD-TOKO';                                   -- << kode gudang
   v_whid  uuid; v_pid uuid; v_cat uuid; v_unit uuid; v_code text; v_i int;
-  r record; n_new int := 0; n_old int := 0; n_mov int := 0;
+  r record; n_new int := 0; n_old int := 0; n_mov int := 0; n_wh int;
   c_marker constant text := 'Migrasi stok awal La Mitra';
 begin
+  -- Gudang: pakai kode di atas; bila tidak ada → pakai satu-satunya gudang aktif; bila belum ada gudang sama sekali → dibuat.
   select id into v_whid from public.warehouses where code = v_wh and is_active;
-  if v_whid is null then raise exception 'Gudang % tidak ditemukan', v_wh; end if;
+  if v_whid is null then
+    select count(*) into n_wh from public.warehouses where is_active;
+    if n_wh = 1 then
+      select id, code into v_whid, v_wh from public.warehouses where is_active;
+    elsif n_wh = 0 then
+      insert into public.warehouses (code, name) values (v_wh, 'Gudang Toko') returning id into v_whid;
+    else
+      raise exception 'Gudang % tidak ditemukan dan ada lebih dari satu gudang aktif. Isi v_wh dengan salah satu kode gudang yang ada.', v_wh;
+    end if;
+  end if;
+  -- Kategori produk dasar dibuat bila belum ada (di database produksi hanya ada bila sudah diisi manual).
+  insert into public.product_categories (code, name) values ('DAGING','Daging'), ('TULANG','Tulang'), ('JEROHAN','Jerohan') on conflict do nothing;
   if to_regprocedure('public.post_stock(uuid,uuid,text,numeric,numeric,text,uuid,text,date,text)') is null then
     raise exception 'Jalankan dulu migrasi 0025 (stok per kode sapi), lalu ulangi skrip ini';
   end if;
@@ -223,7 +235,7 @@ begin
     n_mov := n_mov + 1;
   end loop;
 
-  raise notice 'Selesai: % item baru, % item sudah ada di master, % baris stok awal.', n_new, n_old, n_mov;
+  raise notice 'Selesai: gudang %, % item baru, % item sudah ada di master, % baris stok awal.', v_wh, n_new, n_old, n_mov;
 end
 $mig$;
 
