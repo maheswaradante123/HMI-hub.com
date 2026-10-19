@@ -58,17 +58,22 @@ const sql = `-- ================================================================
 -- UBAH 2 BARIS INI SEBELUM MENJALANKAN:
 --   v_date : tanggal stok dihitung ("cut-off"), tidak boleh di masa depan
 --   v_wh   : kode gudang tujuan
+--   v_otak_kg : false = Otak dihitung PCS (angka apa adanya); true = Otak dihitung KG (angka gram ÷ 1000)
 -- ============================================================================
 do $mig$
 declare
   v_date  date := (now() at time zone 'Asia/Jakarta')::date;   -- << tanggal cut-off
   v_wh    text := 'GD-TOKO';                                   -- << kode gudang
+  v_otak_kg boolean := false;                                  -- << true bila angka Otak sebenarnya gram
   v_whid  uuid; v_pid uuid; v_cat uuid; v_unit uuid; v_code text; v_i int;
   r record; n_new int := 0; n_old int := 0; n_mov int := 0;
   c_marker constant text := 'Migrasi stok awal La Mitra';
 begin
   select id into v_whid from public.warehouses where code = v_wh and is_active;
   if v_whid is null then raise exception 'Gudang % tidak ditemukan', v_wh; end if;
+  if to_regprocedure('public.post_stock(uuid,uuid,text,numeric,numeric,text,uuid,text,date,text)') is null then
+    raise exception 'Jalankan dulu migrasi 0025 (stok per kode sapi), lalu ulangi skrip ini';
+  end if;
   if v_date > (now() at time zone 'Asia/Jakarta')::date then raise exception 'Tanggal cut-off tidak boleh di masa depan'; end if;
   if exists (select 1 from public.stock_movements where note like c_marker || '%') then
     raise exception 'Migrasi ini sudah pernah dijalankan — dihentikan agar stok tidak ganda';
@@ -81,7 +86,7 @@ ${items.map((it) => `    (${q(it)}, ${q(catOf[it])}, ${q(unitOf(it))})`).join(",
     select id into v_pid from public.products where lower(name) = lower(r.name);
     if v_pid is null then
       select id into v_cat from public.product_categories where code = case r.cat when 'Tulang' then 'TULANG' when 'Jeroan' then 'JEROHAN' else 'DAGING' end;
-      select id into v_unit from public.units where code = r.unit;
+      select id into v_unit from public.units where code = case when r.name = 'Otak' and v_otak_kg then 'KG' else r.unit end;
       if v_cat is null or v_unit is null then raise exception 'Kategori/satuan untuk % belum ada di master', r.name; end if;
       v_code := trim(both '-' from left(upper(regexp_replace(r.name, '[^A-Za-z0-9]+', '-', 'g')), 30)); v_i := 0;
       while exists (select 1 from public.products where code = case when v_i = 0 then v_code else v_code || '-' || v_i end) loop v_i := v_i + 1; end loop;
@@ -98,7 +103,7 @@ ${items.map((it) => `    (${q(it)}, ${q(catOf[it])}, ${q(unitOf(it))})`).join(",
 ${list.map((a) => `    (${q(a.item)}, ${a.lot ? q(a.lot) : "null::text"}, ${Number(a.qty.toFixed(3))}::numeric, ${q(a.codes.join(", "))})`).join(",\n")}
   ) as t(name, lot, qty, codes) loop
     select id into v_pid from public.products where lower(name) = lower(r.name);
-    perform public.post_stock(v_pid, v_whid, 'OPENING', r.qty, null, 'MANUAL', null,
+    perform public.post_stock(v_pid, v_whid, 'OPENING', case when r.name = 'Otak' and v_otak_kg then round(r.qty / 1000, 3) else r.qty end, null, 'MANUAL', null,
       c_marker || ' (kode lama: ' || r.codes || ')', v_date, r.lot);
     n_mov := n_mov + 1;
   end loop;
