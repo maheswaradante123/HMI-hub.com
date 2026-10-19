@@ -136,7 +136,10 @@ export default async function DocDetailPage({
           )}
         </>
       )}
-      {(slug === "do" || slug === "pl") && <DocFlow supabase={supabase} plId={slug === "pl" ? id : String(doc.pl_id)} current={slug} />}
+      {(["ro", "prod", "pl", "do", "inv"] as const).includes(slug as "ro") && (
+        <DocFlow supabase={supabase} kind={slug as "ro" | "prod" | "pl" | "do" | "inv"} id={id}
+          access={{ ro: session.can("ro", "view"), prod: session.can("production_order", "view"), pl: session.can("packing_list", "view"), inv: session.can("invoice", "view"), do: session.can("delivery_order", "view") }} />
+      )}
 
       {slug === "pmt" && (() => {
         const t = pmtTotals((doc.store_income_lines as Record<string, number>[]) ?? [], (doc.store_income_receivables as { amount: number }[]) ?? []);
