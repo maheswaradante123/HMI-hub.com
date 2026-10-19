@@ -28,8 +28,6 @@ begin
       raise exception 'Gudang % tidak ditemukan dan ada lebih dari satu gudang aktif. Isi v_wh dengan salah satu kode gudang yang ada.', v_wh;
     end if;
   end if;
-  -- Kategori produk dasar dibuat bila belum ada (di database produksi hanya ada bila sudah diisi manual).
-  insert into public.product_categories (code, name) values ('DAGING','Daging'), ('TULANG','Tulang'), ('JEROHAN','Jerohan') on conflict do nothing;
   if to_regprocedure('public.post_stock(uuid,uuid,text,numeric,numeric,text,uuid,text,date,text)') is null then
     raise exception 'Jalankan dulu migrasi 0025 (stok per kode sapi), lalu ulangi skrip ini';
   end if;
@@ -69,9 +67,23 @@ begin
   ) as t(name, cat, unit) loop
     select id into v_pid from public.products where lower(name) = lower(r.name);
     if v_pid is null then
-      select id into v_cat from public.product_categories where code = case r.cat when 'Tulang' then 'TULANG' when 'Jeroan' then 'JEROHAN' else 'DAGING' end;
+      -- Kategori: cocokkan kode baku, lalu nama (mis. "Daging Sapi"); belum ada sama sekali → dibuat.
+      select id into v_cat from public.product_categories
+       where code = case r.cat when 'Tulang' then 'TULANG' when 'Jeroan' then 'JEROHAN' else 'DAGING' end;
+      if v_cat is null then
+        select id into v_cat from public.product_categories
+         where lower(name) = any (case r.cat when 'Tulang' then array['tulang','tulang sapi']
+                                             when 'Jeroan' then array['jerohan','jeroan','jerohan sapi','jeroan sapi']
+                                             else array['daging','daging sapi'] end)
+         order by created_at limit 1;
+      end if;
+      if v_cat is null then
+        insert into public.product_categories (code, name)
+        values (case r.cat when 'Tulang' then 'TULANG' when 'Jeroan' then 'JEROHAN' else 'DAGING' end, case r.cat when 'Jeroan' then 'Jerohan' else r.cat end)
+        returning id into v_cat;
+      end if;
       select id into v_unit from public.units where code = r.unit;
-      if v_cat is null or v_unit is null then raise exception 'Kategori/satuan untuk % belum ada di master', r.name; end if;
+      if v_unit is null then raise exception 'Satuan % belum ada. Jalankan migrasi 0026 dulu.', r.unit; end if;
       v_code := trim(both '-' from left(upper(regexp_replace(r.name, '[^A-Za-z0-9]+', '-', 'g')), 30)); v_i := 0;
       while exists (select 1 from public.products where code = case when v_i = 0 then v_code else v_code || '-' || v_i end) loop v_i := v_i + 1; end loop;
       insert into public.products (code, name, product_type, category_id, unit_id)
