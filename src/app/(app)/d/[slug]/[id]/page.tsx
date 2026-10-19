@@ -66,7 +66,11 @@ export default async function DocDetailPage({
   ]);
   const allowed = ((rules ?? []) as Rule[]).filter((r) => session.can(r.module, r.action));
   const names = await loadNames(supabase, (history ?? []).map((h) => h.changed_by as string));
-  const canEdit = editableIn(slug, status) && session.can(cfg.module, "edit");
+  const legacyDo = slug === "do" && doc.is_legacy === true;   // surat jalan arsip: tanpa Packing List, barang tersimpan sendiri
+  const { data: legacyItems } = legacyDo
+    ? await supabase.from("do_legacy_items").select("id, line_no, description, item_type, qty_text").eq("do_id", id).order("line_no")
+    : { data: null };
+  const canEdit = editableIn(slug, status) && session.can(cfg.module, "edit") && !legacyDo;
   const next = (NEXT[slug] ?? []).filter((n) => n.when.includes(status) && session.can(n.module, "create"));
   const a = analysis.data as Record<string, number | string> | null;
 
@@ -128,6 +132,22 @@ export default async function DocDetailPage({
         ))}
       </dl>
 
+      {legacyDo && (
+        <section className="mt-6" aria-labelledby="t-legacy">
+          <p role="note" className="rounded-md bg-warn-bg px-4 py-3">Dokumen arsip dari surat jalan lama (Google Sheets). Barang di bawah ini disalin apa adanya dari dokumen asli{doc.pl_id ? "" : ", dan dokumen ini tidak punya Packing List"}.</p>
+          <h2 id="t-legacy" className="mt-6 text-2xl font-bold">Barang (dokumen arsip)</h2>
+          <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface">
+            <table className="w-full text-left text-lg">
+              <thead className="border-b border-line bg-background"><tr><th scope="col" className="px-4 py-3 font-semibold">No</th><th scope="col" className="px-4 py-3 font-semibold">Deskripsi</th><th scope="col" className="px-4 py-3 font-semibold">Jenis</th><th scope="col" className="px-4 py-3 font-semibold">Keterangan</th></tr></thead>
+              <tbody>
+                {(legacyItems ?? []).map((r) => (
+                  <tr key={String(r.id)} className="border-b border-line last:border-0"><td className="px-4 py-3">{String(r.line_no)}</td><td className="px-4 py-3">{String(r.description ?? "-")}</td><td className="px-4 py-3">{String(r.item_type ?? "-")}</td><td className="px-4 py-3">{String(r.qty_text ?? "-")}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {slug === "do" && (
         <>
           <DoSteps status={status} />

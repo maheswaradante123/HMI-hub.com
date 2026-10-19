@@ -55,10 +55,12 @@ export async function DocFlow({ supabase, kind, id, access }: { supabase: Supa; 
   const plConds = [...(roId ? [`ro_id.eq.${roId}`] : []), ...orIn("po_id", poAll), ...orIn("id", plIds)];
   const { data: pls } = plConds.length ? await supabase.from("packing_lists").select(sel).or(plConds.join(",")).is("deleted_at", null).order("created_at") : { data: [] };
   const plAll = ((pls ?? []) as D[]).map((x) => x.id);
-  const [{ data: invs }, { data: dos }] = plAll.length || kind === "inv"
+  // Surat jalan arsip bisa tanpa Packing List: dokumen yang sedang dibuka tetap ikut dimuat.
+  const doConds = [...orIn("pl_id", plAll), ...(kind === "do" ? [`id.eq.${id}`] : [])];
+  const [{ data: invs }, { data: dos }] = plAll.length || kind === "inv" || kind === "do"
     ? await Promise.all([
-        supabase.from("invoices").select(sel).or([...orIn("pl_id", plAll), ...(kind === "inv" ? [`id.eq.${id}`] : [])].join(",")).is("deleted_at", null).order("created_at"),
-        plAll.length ? supabase.from("delivery_orders").select(sel).in("pl_id", plAll).is("deleted_at", null).order("created_at") : Promise.resolve({ data: [] }),
+        plAll.length || kind === "inv" ? supabase.from("invoices").select(sel).or([...orIn("pl_id", plAll), ...(kind === "inv" ? [`id.eq.${id}`] : [])].join(",")).is("deleted_at", null).order("created_at") : Promise.resolve({ data: [] }),
+        doConds.length ? supabase.from("delivery_orders").select(sel).or(doConds.join(",")).is("deleted_at", null).order("created_at") : Promise.resolve({ data: [] }),
       ])
     : [{ data: [] }, { data: [] }];
   const keep = (list: unknown, k: FlowKind) => ((list ?? []) as D[]).filter((d) => d.status !== "VOID" || (kind === k && d.id === id));

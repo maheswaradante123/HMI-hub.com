@@ -21,7 +21,7 @@ export const kgFmt = (n) => {
   return (Number(n) < 0 ? "-" : "") + i.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + f;
 };
 
-/** d: {nomor, tanggal(iso), kepada, telepon, baris[{desc, jenis, qty, unit}], catatan, pengawas, penerima} */
+/** d: {nomor, tanggal(iso), kepada, telepon, baris[{desc, jenis, qty (angka, atau teks untuk surat jalan arsip), unit}], catatan, pengawas, penerima} */
 export async function buatSuratJalanPdf(d) {
   const rows = d.baris.length ? d.baris : [];
   const n = Math.max(rows.length, 1);
@@ -60,7 +60,7 @@ export async function buatSuratJalanPdf(d) {
     center(String(i + 1), COL[0], COL[1], top, SZ);
     T(fit(r.desc, COL[2] - COL[1] - 6, 10.71), 120.6, top + 0.3, 10.71);
     center(fit(r.jenis, COL[3] - COL[2] - 6, SZ), COL[2], COL[3], top, SZ);
-    center(`${kgFmt(r.qty)}${r.unit ? " " + r.unit : ""}`, COL[3], COL[4], top + 0.6, SZ);
+    center(typeof r.qty === "string" ? fit(r.qty, COL[4] - COL[3] - 6, SZ) : `${kgFmt(r.qty)}${r.unit ? " " + r.unit : ""}`, COL[3], COL[4], top + 0.6, SZ);
   });
   for (let i = 0; i < n; i++) hline(69.9, 525.5, 201.3 + i * ROW);
   const bot = 201.6 + (n - 1) * ROW;
@@ -99,10 +99,10 @@ export async function buatSuratJalanXlsx(d) {
   ws.getRow(hr).height = 24;
   let r = hr + 1;
   d.baris.forEach((b, i) => {
-    [i + 1, b.desc, b.jenis, Number(b.qty)].forEach((v, j) => {
+    [i + 1, b.desc, b.jenis, typeof b.qty === "string" ? b.qty : Number(b.qty)].forEach((v, j) => {
       const c = ws.getCell(r, j + 2); c.value = v; c.font = F(); c.border = box;
       c.alignment = { horizontal: j === 1 ? "left" : "center", vertical: "middle" };
-      if (j === 3) c.numFmt = `0.000"${b.unit ? " " + b.unit : ""}"`;
+      if (j === 3 && typeof b.qty !== "string") c.numFmt = `0.000"${b.unit ? " " + b.unit : ""}"`;
     });
     r++;
   });

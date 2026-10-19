@@ -67,3 +67,10 @@ test("setiap konfigurasi punya slug unik dan modul", () => {
   assert.equal(new Set(slugs).size, slugs.length);
   for (const c of Object.values(CONFIGS)) assert.ok(c.module && c.table && c.header.length > 0, c.type);
 });
+
+test("docUnit: satuan Gram di dokumen tampil Kg, lainnya tetap", async () => {
+  const { docUnit } = await import("./format.ts");
+  assert.equal(docUnit("Gram"), "Kg");
+  assert.equal(docUnit("Kilogram"), "Kilogram");
+  assert.equal(docUnit(null), "");
+});

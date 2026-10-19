@@ -55,7 +55,7 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
   if (slug === "do") {
     const { data: dn } = await supabase
       .from("delivery_orders")
-      .select("doc_number, do_date, notes, customers(name), packing_lists(doc_number, phone, supervisor, request_orders(orderer_name), pl_items(line_no, qty, products(name, product_categories(name), units(name))))")
+      .select("doc_number, do_date, notes, is_legacy, receiver_name, customers(name), packing_lists(doc_number, phone, supervisor, request_orders(orderer_name), pl_items(line_no, qty, products(name, product_categories(name), units(name))))")
       .eq("id", id).is("deleted_at", null).maybeSingle();
     if (!dn) return NextResponse.json({ error: "Surat jalan tidak ditemukan." }, { status: 404 });
     type It = { line_no: number; qty: number; products: { name: string; product_categories: { name: string } | null; units: { name: string } | null } | null };
@@ -69,6 +69,16 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
       const cur = per.get(name) ?? { desc: name, jenis: i.products?.product_categories?.name ?? "Daging", qty: 0, unit: docUnit(i.products?.units?.name) || "Kg" };
       cur.qty = Math.round((cur.qty + Number(i.qty)) * 1000) / 1000;
       per.set(name, cur);
+    }
+    if (dn.is_legacy) {
+      // Surat jalan arsip: baris barang disalin dari dokumen lama (jumlah berupa teks, mis. "2 kg").
+      const { data: li } = await supabase.from("do_legacy_items").select("line_no, description, item_type, qty_text").eq("do_id", id).order("line_no");
+      const arsip = {
+        nomor: dn.doc_number, tanggal: dn.do_date, kepada: cust, telepon: pl?.phone ?? "", catatan: dn.notes ?? "", pengawas: pl?.supervisor ?? "", penerima: dn.receiver_name ?? cust,
+        baris: (li ?? []).map((i) => ({ desc: i.description ?? "", jenis: i.item_type ?? "", qty: i.qty_text ?? "", unit: "" })),
+      };
+      if (!pdf) return xlsxResponse(await buatSuratJalanXlsx(arsip), dn.doc_number);
+      return new NextResponse((await buatSuratJalanPdf(arsip)) as BodyInit, { headers: pdfHeaders(dn.doc_number) });
     }
     const doData = {
       nomor: dn.doc_number, tanggal: dn.do_date, kepada: pl?.request_orders?.orderer_name || cust, telepon: pl?.phone ?? "", catatan: dn.notes ?? "",

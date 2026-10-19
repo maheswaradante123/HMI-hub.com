@@ -15,7 +15,7 @@ declare
   v_cust   jsonb := '{}'::jsonb;   -- kode customer -> id
   v_prod   jsonb := '{}'::jsonb;   -- nama produk -> id
   v_ro     jsonb := '{}'::jsonb;   -- nomor RO -> id
-  v_ids uuid[]; v_id uuid; v_cat uuid; v_unit uuid; v_code text; v_i int; v_ln int; v_pid uuid; v_cid uuid;
+  v_dup text; v_ids uuid[]; v_id uuid; v_cat uuid; v_unit uuid; v_code text; v_i int; v_ln int; v_pid uuid; v_cid uuid;
   n_c_new int := 0; n_c_old int := 0; n_p_new int := 0; n_p_old int := 0; n_ro int := 0; n_po int := 0; n_it int := 0;
 begin
   if not exists (select 1 from pg_constraint where conname = 'ro_items_packaging_chk' and pg_get_constraintdef(oid) like '%Vacuum 3 Kg%')
@@ -25,11 +25,13 @@ begin
   if (select count(*) from public.units where code in ('GRAM','EKOR','LS')) < 3 then
     raise exception 'Satuan Gram/Ekor/Lumpsum belum ada. Jalankan migrasi 0026 dan 0027 dulu.';
   end if;
-  if exists (select 1 from public.request_orders where doc_number in (select e.j->>'no' from jsonb_array_elements(v->'ros') as e(j))) then
-    raise exception 'RO hasil migrasi ini sudah ada — dihentikan agar tidak ganda';
+  select string_agg(doc_number, ', ' order by doc_number) into v_dup from (select doc_number from public.request_orders where doc_number in (select e.j->>'no' from jsonb_array_elements(v->'ros') as e(j)) order by doc_number limit 5) q;
+  if v_dup is not null then
+    raise exception 'Nomor RO sudah ada: % (dan mungkin lainnya). Skrip ini sudah pernah dijalankan, atau nomor tersebut sudah terpakai oleh dokumen baru — dihentikan agar tidak ganda.', v_dup;
   end if;
-  if exists (select 1 from public.production_orders where doc_number in (select e.j->>'no' from jsonb_array_elements(v->'pos') as e(j))) then
-    raise exception 'Production Order hasil migrasi ini sudah ada — dihentikan agar tidak ganda';
+  select string_agg(doc_number, ', ' order by doc_number) into v_dup from (select doc_number from public.production_orders where doc_number in (select e.j->>'no' from jsonb_array_elements(v->'pos') as e(j)) order by doc_number limit 5) q;
+  if v_dup is not null then
+    raise exception 'Nomor Production Order sudah ada: % (dan mungkin lainnya). Skrip ini sudah pernah dijalankan, atau nomor tersebut sudah terpakai oleh dokumen baru — dihentikan agar tidak ganda.', v_dup;
   end if;
 
   -- 1) Pelanggan: pakai yang sudah ada (kode / nama / pola nama), selain itu dibuat.
