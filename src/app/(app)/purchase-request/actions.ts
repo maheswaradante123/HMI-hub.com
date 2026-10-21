@@ -2,10 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parsePrRows } from "@/lib/pr/schema";
 import { LINE_LABEL, type LineStatus } from "@/lib/pr/lines";
+import { dispatchNotifications } from "@/lib/notify/send";
 
 export type PrFormState = { error?: string; rows?: Record<string, string>[] };
 export type MoveResult = { error?: string; message?: string };
@@ -57,6 +59,7 @@ export async function movePrItems(sheetId: string, ids: string[], to: string, no
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("pr_move_items", { p_ids: ids, p_to: to, p_note: note.trim() || null });
   if (error) return { error: dbMessage(error) };
+  after(() => dispatchNotifications(supabase));
   revalidatePath(`/purchase-request/${sheetId}`);
   revalidatePath("/purchase-request");
   const n = Number(data ?? 0);

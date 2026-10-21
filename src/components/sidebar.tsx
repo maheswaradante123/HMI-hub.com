@@ -32,7 +32,8 @@ export function Sidebar({ session }: { session: Session }) {
       <SidebarNav groups={groups} showDashboard={session.can("dashboard", "view")} />
       <div className="border-t border-side-line p-4">
         <p className="font-semibold text-white">{session.fullName}</p>
-        <p className="mb-3 text-sm text-side-mute">{session.roleName}</p>
+        <p className="mb-2 text-sm text-side-mute">{session.roleName}</p>
+        <Link href="/notifikasi" className="mb-3 block text-sm text-side-fg underline">Notifikasi email</Link>
         <form action={logout}>
           <button
             type="submit"

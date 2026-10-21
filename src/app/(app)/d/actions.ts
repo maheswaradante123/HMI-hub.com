@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -8,6 +9,7 @@ import { CONFIGS } from "@/lib/docs/config";
 import { parseDoc, parseQty, type Payload } from "@/lib/docs/parse";
 import { cleanCwItems, cwTotals } from "@/lib/docs/cw";
 import { dbMessage } from "@/lib/docs/errors";
+import { dispatchNotifications } from "@/lib/notify/send";
 
 export type DocFormState = { error?: string; payload?: string };
 export type DocActionState = { error?: string };
@@ -86,6 +88,7 @@ export async function saveCw(id: string, _prev: DocFormState, formData: FormData
   if (!finalize) redirect(`/d/cw/${docId}?ok=disimpan`);
 
   const { error: e2 } = await supabase.rpc("doc_change_status", { p_type: cfg.type, p_id: docId, p_to: "FINAL", p_note: null });
+  after(() => dispatchNotifications(supabase));
   revalidatePath(`/d/cw/${docId}`);
   // Draf sudah tersimpan; bila finalisasi gagal, buka drafnya beserta alasannya agar tidak tersimpan dua kali.
   if (e2) redirect(`/d/cw/${docId}?ok=disimpan&err=${encodeURIComponent(dbMessage(e2))}`);
@@ -103,6 +106,7 @@ export async function changeDocStatus(slug: string, id: string, to: string, _pre
   const supabase = await createClient();
   const { error } = await supabase.rpc("doc_change_status", { p_type: cfg.type, p_id: id, p_to: to, p_note: note || null });
   if (error) return { error: dbMessage(error) };
+  after(() => dispatchNotifications(supabase));
 
   revalidatePath(`/d/${slug}`);
   revalidatePath(`/d/${slug}/${id}`);

@@ -18,8 +18,20 @@
 2. Environment Variables (Production dan Preview):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - Notifikasi email (opsional, lihat bagian 2b): `SMTP_USER`, `SMTP_PASS`, `APP_URL`
 3. **Jangan** menaruh `SUPABASE_SERVICE_ROLE_KEY` di Vercel. Kunci itu hanya untuk skrip lokal `scripts/seed-dev-users.mjs`.
 4. Deploy. Buka alamat Vercel, masuk sebagai Owner, lalu cek menu Role & Izin.
+
+## 2b. Notifikasi email (migrasi 0029)
+Setiap perpindahan status dokumen yang membutuhkan tindakan (RO dikonfirmasi, PO diajukan atau disetujui, Packing List dikemas, Surat Jalan, Invoice, jurnal kas, PR) mengirim email ke user aktif yang **berizin** melakukan langkah berikutnya. Aturannya ada di tabel `notification_rules`; penerima mengikuti role dan izin (termasuk override) sehingga tidak ada daftar penerima manual. Pengirim perubahan tidak menerima emailnya sendiri, dan tiap user bisa mematikannya di menu Notifikasi (sidebar, di bawah nama).
+
+Pengiriman lewat SMTP dengan akun Gmail khusus (batas sekitar 500 email per hari):
+1. Buat akun Gmail khusus, mis. `notifikasi.hmi@gmail.com`. Aktifkan Verifikasi 2 Langkah, lalu buat **App Password** di myaccount.google.com/apppasswords (16 huruf).
+2. Vercel > Settings > Environment Variables (Production): `SMTP_USER` = alamat Gmail itu, `SMTP_PASS` = App Password, `APP_URL` = alamat aplikasi (mis. `https://hmihub.vercel.app`, tanpa garis miring akhir). Opsional: `MAIL_FROM_NAME` (default "HMI Hub"), `SMTP_HOST`/`SMTP_PORT` untuk layanan selain Gmail (default smtp.gmail.com:465). Lalu Redeploy.
+3. Jalankan `supabase/migrations/0029_notifikasi_email.sql` di SQL Editor **sebelum** deploy kode.
+4. Buka menu Notifikasi, klik "Kirim email uji ke saya".
+
+Bila `SMTP_USER`/`SMTP_PASS` kosong, aplikasi berjalan normal tanpa mengirim email. Email yang gagal dicoba lagi pada aksi berikutnya dari user yang sama (maksimal 3 kali). Saat domain sendiri sudah ada, ganti ke layanan email transaksional (Resend, dsb.) cukup dengan mengubah variabel SMTP di atas.
 
 ## 3. Daftar periksa keamanan sebelum dipakai staf
 - [ ] Sign up publik dimatikan di Supabase Auth.
