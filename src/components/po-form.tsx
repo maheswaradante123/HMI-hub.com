@@ -6,7 +6,7 @@ import { saveDoc, type DocFormState } from "@/app/(app)/d/actions";
 import { RO_PACK } from "@/lib/docs/config";
 import type { PoRo } from "@/lib/docs/ro-lists";
 import type { RoProduct } from "@/components/ro-form";
-import { fmtDate } from "@/lib/docs/format";
+import { docUnit, fmtDate } from "@/lib/docs/format";
 
 type Row = Record<string, string>;
 const inp = "w-full rounded-md border-2 border-line bg-white px-3 py-2.5 text-lg";
@@ -97,7 +97,7 @@ export function PoForm({ id, initial, ros, products, today, number, cancelHref }
                   <thead><tr className="text-sm uppercase tracking-wide text-muted"><th className="w-8 pb-2">No</th><th className="pb-2">Nama produk</th><th className="w-28 pb-2">Qty</th><th className="w-20 pb-2">Satuan</th><th className="pb-2">Jenis potongan</th><th className="pb-2">Jenis pengemasan</th><th className="w-10" /></tr></thead>
                   <tbody>
                     {items.map((r, i) => {
-                      const unit = products.find((p) => p.id === r.product_id)?.unit ?? "";
+                      const unit = docUnit(products.find((p) => p.id === r.product_id)?.unit);
                       const changed = r.ro_product_id && r.product_id && r.ro_product_id !== r.product_id;
                       return (
                         <tr key={i} className="align-top">

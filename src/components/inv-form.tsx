@@ -7,7 +7,7 @@ import type { InvPl } from "@/lib/docs/ro-lists";
 import type { RoProduct } from "@/components/ro-form";
 import { parseQty } from "@/lib/docs/parse";
 import { parseMoney } from "@/lib/pricing/schema";
-import { fmtRupiah } from "@/lib/docs/format";
+import { docUnit, fmtRupiah } from "@/lib/docs/format";
 import { terbilangRupiah } from "@/lib/docs/terbilang";
 
 type Row = Record<string, string>;
@@ -111,7 +111,7 @@ export function InvForm({ id, initial, pls, products, taxRate, number, cancelHre
                       {r._text && !r.product_id && <p className="mt-1 text-sm text-danger">Pilih produk dari daftar yang ada.</p>}
                     </td>
                     <td className="py-1 pr-2"><input aria-label={`Qty ${i + 1}`} className={`${inp} text-right`} inputMode="decimal" value={r.qty ?? ""} onChange={(e) => setItem(i, { qty: e.target.value })} /></td>
-                    <td className="py-1 pr-2 pt-4 text-lg">{products.find((p) => p.id === r.product_id)?.unit ?? ""}</td>
+                    <td className="py-1 pr-2 pt-4 text-lg">{docUnit(products.find((p) => p.id === r.product_id)?.unit)}</td>
                     <td className="py-1 pr-2"><input aria-label={`Harga ${i + 1}`} className={`${inp} text-right`} inputMode="decimal" placeholder="otomatis" value={r.unit_price ?? ""} onChange={(e) => setItem(i, { unit_price: e.target.value })} /></td>
                     <td className="py-1 pr-2 pt-4 text-right text-lg font-semibold">{amount(r) ? fmtRupiah(amount(r)) : "—"}</td>
                     <td className="py-1 pt-3"><button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={items.length === 1} onClick={() => setItems((x) => x.filter((_, j) => j !== i))} className="rounded-md px-3 py-1.5 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button></td>

@@ -6,7 +6,7 @@ import { quickProduct, saveDoc, type DocFormState } from "@/app/(app)/d/actions"
 import { RO_DELIVERY, RO_PACK, RO_PAYMENT } from "@/lib/docs/config";
 import { parseQty } from "@/lib/docs/parse";
 import { parseMoney } from "@/lib/pricing/schema";
-import { fmtRupiah } from "@/lib/docs/format";
+import { docUnit, fmtRupiah } from "@/lib/docs/format";
 
 export type RoCustomer = { id: string; name: string; code: string; phone: string; address: string; term: number };
 export type RoProduct = { id: string; code: string; name: string; unit: string };
@@ -77,7 +77,7 @@ export function RoForm({ id, initial, customers, products: productList, units, c
     return typeof q === "number" && typeof p === "number" ? q * p : 0;
   };
   const total = items.reduce((s, r) => s + amount(r), 0);
-  const unitOf = (r: Row) => products.find((p) => p.id === r.product_id)?.unit ?? "";
+  const unitOf = (r: Row) => docUnit(products.find((p) => p.id === r.product_id)?.unit);
   const payload = JSON.stringify({ header: h, children: { items: items.map(({ _text, ...r }) => { void _text; return r; }) } });
 
   return (
@@ -160,7 +160,10 @@ export function RoForm({ id, initial, customers, products: productList, units, c
                         </div>
                       )}
                     </td>
-                    <td className="py-1 pr-2"><input aria-label={`Qty ${i + 1}`} className={inp} inputMode="decimal" value={r.qty ?? ""} onChange={(e) => setItem(i, { qty: e.target.value })} /></td>
+                    <td className="py-1 pr-2">
+                      <input aria-label={`Qty ${i + 1}`} className={inp} inputMode="decimal" value={r.qty ?? ""} onChange={(e) => setItem(i, { qty: e.target.value })} />
+                      {unitOf(r) === "Kg" && Number(parseQty(r.qty ?? "")) >= 1000 && <p className="mt-1 text-sm text-warn">Jumlah dalam Kg. Pastikan {r.qty} Kg benar (bukan gram).</p>}
+                    </td>
                     <td className="py-1 pr-2 pt-4 text-lg">{unitOf(r)}</td>
                     <td className="py-1 pr-2"><input aria-label={`Jenis potongan ${i + 1}`} className={inp} placeholder="mis. Slice 2 mm" value={r.cut_type ?? ""} onChange={(e) => setItem(i, { cut_type: e.target.value })} /></td>
                     <td className="py-1 pr-2">
