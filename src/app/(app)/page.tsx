@@ -29,7 +29,7 @@ const ATTENTION: { key: keyof Summary; label: string; href: string; money?: bool
   { key: "prod_waiting", label: "Production Order menunggu persetujuan", href: "/d/prod?status=SUBMITTED", warn: (n) => n > 0 },
   { key: "pl_on_the_way", label: "Pengiriman belum terkonfirmasi", href: "/d/pl" },
   { key: "receivable_overdue", label: "Piutang lewat jatuh tempo", href: "/d/inv", money: true, warn: (n) => n > 0 },
-  { key: "cash_in_month", label: "Kas masuk bulan ini", href: "/d/crj", money: true },
+  { key: "cash_in_month", label: "Kas masuk bulan ini", href: "/d/jcr", money: true },
   { key: "cash_out_month", label: "Kas keluar bulan ini", href: "/d/cpj", money: true },
 ];
 

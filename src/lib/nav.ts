@@ -37,7 +37,8 @@ export const NAV: NavGroup[] = [
     title: "Accounting",
     items: [
       { slug: "invoice", label: "Invoice", module: "invoice", href: "/d/inv" },
-      { slug: "crj", label: "CRJ (Penerimaan)", module: "crj", href: "/d/crj" },
+      { slug: "jcr", label: "CRJ (Penerimaan)", module: "crj", href: "/d/jcr" },
+      { slug: "crj", label: "CRJ lama (per penerimaan)", module: "crj", href: "/d/crj" },
       { slug: "pemasukan-toko", label: "Pemasukan Toko", module: "store_income", href: "/d/pmt" },
       { slug: "jcp", label: "Cash Payment Journal", module: "cpj_journal", href: "/d/jcp" },
       { slug: "cpj", label: "Bayar per PR (CPJ lama)", module: "cpj", href: "/d/cpj" },

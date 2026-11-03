@@ -6,6 +6,7 @@ import { DocForm } from "@/components/doc-form";
 import { CONFIGS, editableIn } from "@/lib/docs/config";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
+import { CrjForm } from "@/components/crj-form";
 import { ApForm } from "@/components/ap-form";
 import { CwForm } from "@/components/cw-form";
 import { loadCwLists } from "@/lib/docs/cw-lists";
@@ -101,6 +102,17 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
       </div>
     );
   }
+  if (slug === "jcr") {
+    const { data: accs } = await supabase.from("accounts").select("id, name, is_active").order("name");
+    const used = new Set(((doc.cash_receipt_lines as Record<string, unknown>[] | undefined) ?? []).map((l) => String(l.account_id)));
+    return (
+      <div>
+        <h1 className="mb-6 text-3xl font-bold">Ubah CRJ {String(doc.doc_number)}</h1>
+        <CrjForm id={id} initial={{ header: header as Record<string, string>, lines: children.lines ?? [] }} number={String(doc.doc_number)} cancelHref={`/d/jcr/${id}`}
+          accounts={(accs ?? []).filter((a) => a.is_active || used.has(a.id)).map((a) => ({ id: a.id, name: a.name }))} />
+      </div>
+    );
+  }
   if (slug === "jcp") {
     return (
       <div>
@@ -117,7 +129,7 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
     return (
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Pemasukan Toko {String(doc.doc_number)}</h1>
-        <PmtForm id={id} initial={{ header: header as Record<string, string>, lines: rowsOf("lines", ["entry_date", "description", "cash", "qris", "debit", "grab", "tf", "deposited", "proof", "invoice_id"], ["cash", "qris", "debit", "grab", "tf", "deposited"]), recv: rowsOf("recv", ["name", "amount"], ["amount"]) }} number={String(doc.doc_number)} cancelHref={`/d/pmt/${id}`} />
+        <PmtForm id={id} initial={{ header: header as Record<string, string>, lines: rowsOf("lines", ["entry_date", "description", "cash", "qris", "qris_mandiri", "qris_bri", "debit", "grab", "tf", "deposited", "proof", "invoice_id"], ["cash", "qris", "qris_mandiri", "qris_bri", "debit", "grab", "tf", "deposited"]), recv: rowsOf("recv", ["name", "amount"], ["amount"]) }} number={String(doc.doc_number)} cancelHref={`/d/pmt/${id}`} />
       </div>
     );
   }

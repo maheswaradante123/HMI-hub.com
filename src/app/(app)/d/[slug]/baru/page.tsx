@@ -9,6 +9,8 @@ import { loadDocRefs } from "@/lib/docs/refs";
 import { loadPrefill } from "@/lib/docs/prefill";
 import { PmtForm } from "@/components/pmt-form";
 import { JcpForm } from "@/components/jcp-form";
+import { CrjForm } from "@/components/crj-form";
+import { weekRange } from "@/lib/docs/crj";
 import { ApForm } from "@/components/ap-form";
 import { CwForm, CW_BLANK_ROWS } from "@/components/cw-form";
 import { loadCwLists } from "@/lib/docs/cw-lists";
@@ -72,6 +74,38 @@ export default async function NewDocPage({
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
         <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
+      </div>
+    );
+  }
+
+  if (slug === "jcr") {
+    const today = todayJakarta();
+    const week = weekRange(today);
+    const { data: accs } = await supabase.from("accounts").select("id, name").eq("is_active", true).order("name");
+    // Dari halaman invoice atau non-karkas: ?inv=id / ?ncs=id langsung mengisi satu baris pembayaran.
+    const mkMoney = (n: number) => n.toLocaleString("id-ID");
+    const blankLine = { source: "OTHER", trans_date: today, description: "", account_id: "", amount: "", proof: "", invoice_id: "", ncs_id: "", qurban_order_id: "", qurban_bill_id: "", src_ref: "" };
+    let lines: Record<string, string>[] = [];
+    const UUID36 = /^[0-9a-f-]{36}$/i;
+    if (sp.inv && UUID36.test(sp.inv)) {
+      const { data } = await supabase.from("invoices").select("id, doc_number, total, paid_amount, customers(name)").eq("id", sp.inv).maybeSingle();
+      if (data) {
+        const cust = Array.isArray(data.customers) ? data.customers[0] : data.customers;
+        lines = [{ ...blankLine, source: "HOREKA", invoice_id: data.id, description: `Pembayaran invoice ${data.doc_number} · ${cust?.name ?? ""}`, amount: mkMoney(Number(data.total) - Number(data.paid_amount)) }];
+      }
+    } else if (sp.ncs && UUID36.test(sp.ncs)) {
+      const { data } = await supabase.from("noncarcass_sales").select("id, doc_number, total_amount, paid_amount, customers(name)").eq("id", sp.ncs).maybeSingle();
+      if (data) {
+        const cust = Array.isArray(data.customers) ? data.customers[0] : data.customers;
+        lines = [{ ...blankLine, source: "NONKARKAS", ncs_id: data.id, description: `Pembayaran non-karkas ${data.doc_number} · ${cust?.name ?? ""}`, amount: mkMoney(Number(data.total_amount) - Number(data.paid_amount)) }];
+      }
+    }
+    return (
+      <div>
+        <p className="text-sm text-muted"><Link href="/d/jcr" className="underline">CRJ (Penerimaan)</Link> › Baru</p>
+        <h1 className="text-3xl font-bold">CRJ Baru</h1>
+        <p className="mb-6 mt-1 text-muted">Satu CRJ per periode. Atur periode, tarik baris dari sumbernya, lalu pilih rekening tiap baris.</p>
+        <CrjForm id="" initial={{ header: { period_from: week.from, period_to: week.to, notes: "" }, lines }} number="" cancelHref="/d/jcr" accounts={accs ?? []} />
       </div>
     );
   }

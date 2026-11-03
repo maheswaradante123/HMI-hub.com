@@ -10,6 +10,7 @@ import { parseDoc, parseQty, type Payload } from "@/lib/docs/parse";
 import { cleanCwItems, cwTotals } from "@/lib/docs/cw";
 import { dbMessage } from "@/lib/docs/errors";
 import { dispatchNotifications } from "@/lib/notify/send";
+import { CRJ_PULLABLE, type CrjPullRow } from "@/lib/docs/crj";
 
 export type DocFormState = { error?: string; payload?: string };
 export type DocActionState = { error?: string };
@@ -177,4 +178,23 @@ export async function pullPrItems(): Promise<{ error?: string; items?: PrItemPul
   const { data, error } = await supabase.rpc("cpj_pullable_pr_items");
   if (error) return { error: dbMessage(error) };
   return { items: (data ?? []).map((r: Record<string, unknown>) => ({ pr_item_id: String(r.pr_item_id), pr_number: String(r.pr_number ?? ""), pr_status: String(r.pr_status), item_name: String(r.item_name), qty: Number(r.qty), unit: String(r.unit ?? ""), price: Number(r.price), ac: String(r.ac ?? "OPR"), code: String(r.code ?? "") })) };
+}
+
+// Baris CRJ yang bisa ditarik dari satu sumber (Qurban, QRIS, setoran cash, tempo Horeka, non-karkas).
+export async function pullCrj(source: string, from: string, to: string): Promise<{ error?: string; rows?: CrjPullRow[] }> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  if (!session.can("crj", "create") && !session.can("crj", "edit")) return { error: "Anda tidak memiliki izin." };
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (!CRJ_PULLABLE.some((s) => s.value === source)) return { error: "Sumber tidak dikenal." };
+  if (!iso.test(from) || !iso.test(to) || to < from) return { error: "Periode tidak valid. Isi tanggal dari dan sampai dengan benar." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("crj_pull", { p_source: source, p_from: from, p_to: to });
+  if (error) return { error: dbMessage(error) };
+  return {
+    rows: (data ?? []).map((r: Record<string, unknown>) => ({
+      source: String(r.source), ref_id: String(r.ref_id ?? ""), src_ref: String(r.src_ref ?? ""), trans_date: String(r.trans_date ?? ""),
+      description: String(r.description ?? ""), amount: Number(r.amount), account_id: String(r.account_id ?? ""),
+    })),
+  };
 }

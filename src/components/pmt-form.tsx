@@ -10,8 +10,11 @@ import { PMT_COLS, pmtTotals, type PmtCol } from "@/lib/docs/pmt";
 type Row = Record<string, string>;
 const inp = "w-full rounded-md border-2 border-line bg-white px-2 py-2 text-base";
 const lab = "mb-1 block text-sm font-semibold uppercase tracking-wide text-muted";
-const COL_LABEL: Record<PmtCol, string> = { cash: "Cash", qris: "QRIS", debit: "Debit", grab: "Grab", tf: "TF Rek HMI", deposited: "Disetor" };
-const blankLine = (date = ""): Row => ({ entry_date: date, description: "Pemasukan", cash: "", qris: "", debit: "", grab: "", tf: "", deposited: "", proof: "", invoice_id: "" });
+const COL_LABEL: Record<string, string> = { cash: "Cash", qris_mandiri: "QRIS Mandiri", qris_bri: "QRIS BRI", debit: "Debit", grab: "Grab", tf: "TF Rek HMI", deposited: "Disetor" };
+// QRIS dipecah per bank; kolom qris (total) dihitung dari keduanya. Baris lama yang hanya punya total QRIS tetap dipakai apa adanya.
+const FORM_COLS = ["cash", "qris_mandiri", "qris_bri", "debit", "grab", "tf", "deposited"] as const;
+
+const blankLine = (date = ""): Row => ({ entry_date: date, description: "Pemasukan", cash: "", qris: "", qris_mandiri: "", qris_bri: "", debit: "", grab: "", tf: "", deposited: "", proof: "", invoice_id: "" });
 const sm = (v: string) => {
   const t = (v ?? "").trim();
   if (!t) return 0;
@@ -19,6 +22,7 @@ const sm = (v: string) => {
   const n = parseMoney(neg ? t.slice(1).trim() : t);
   return typeof n === "number" ? (neg ? -n : n) : 0;
 };
+const qrisOf = (l: Row) => ((l.qris_mandiri ?? "").trim() || (l.qris_bri ?? "").trim() ? sm(l.qris_mandiri ?? "") + sm(l.qris_bri ?? "") : sm(l.qris ?? ""));
 const fmtIn = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("id-ID")}`;
 
 export function PmtForm({ id, initial, number, cancelHref }: {
@@ -37,7 +41,8 @@ export function PmtForm({ id, initial, number, cancelHref }: {
 
   const setLine = (i: number, k: string, v: string) => setLines((r) => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const setRecvRow = (i: number, k: string, v: string) => setRecv((r) => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
-  const t = pmtTotals(lines.map((l) => Object.fromEntries(PMT_COLS.map((c) => [c, sm(l[c] ?? "")]))), recv.map((r) => ({ amount: sm(r.amount ?? "") })));
+  const t = pmtTotals(lines.map((l) => Object.fromEntries(PMT_COLS.map((c) => [c, c === "qris" ? qrisOf(l) : sm(l[c] ?? "")]))), recv.map((r) => ({ amount: sm(r.amount ?? "") })));
+  const sumCol = (c: string) => lines.reduce((s, l) => s + sm(l[c] ?? ""), 0);
 
   const pullInv = () => start(async () => {
     setMsg("");
@@ -46,7 +51,7 @@ export function PmtForm({ id, initial, number, cancelHref }: {
     const have = new Set(lines.map((l) => l.invoice_id).filter(Boolean));
     const add: Row[] = (res.lines ?? []).filter((l) => !have.has(l.invoice_id) || !l.invoice_id)
       .map((l) => ({ ...blankLine(l.entry_date), description: l.description, tf: fmtIn(l.tf), invoice_id: l.invoice_id }));
-    const kept = lines.filter((l) => l.description.trim() !== "Pemasukan" || PMT_COLS.some((c) => (l[c] ?? "").trim()) || l.invoice_id);
+    const kept = lines.filter((l) => l.description.trim() !== "Pemasukan" || FORM_COLS.some((c) => (l[c] ?? "").trim()) || (l.qris ?? "").trim() || l.invoice_id);
     setLines([...kept, ...add].sort((a, b) => (a.entry_date || "9").localeCompare(b.entry_date || "9")));
     setMsg(add.length ? `${add.length} baris pembayaran invoice ditambahkan.` : "Tidak ada pembayaran invoice baru pada periode ini.");
   });
@@ -59,7 +64,7 @@ export function PmtForm({ id, initial, number, cancelHref }: {
     setMsg(`Piutang diperbarui dari invoice yang belum lunas (${(res.recv ?? []).length} pelanggan).`);
   });
 
-  const payload = JSON.stringify({ header: h, children: { lines, recv } });
+  const payload = JSON.stringify({ header: h, children: { lines: lines.map((l) => ({ ...l, qris: qrisOf(l) ? String(qrisOf(l)) : "" })), recv } });
   return (
     <form action={action} noValidate className="max-w-[1400px]">
       <input type="hidden" name="payload" value={payload} />
@@ -83,7 +88,7 @@ export function PmtForm({ id, initial, number, cancelHref }: {
             <table className="w-full min-w-[1200px] text-left">
               <thead><tr className="text-sm uppercase tracking-wide text-muted">
                 <th className="w-8 pb-2">No</th><th className="w-36 pb-2">Tanggal</th><th className="pb-2">Deskripsi</th>
-                {PMT_COLS.map((c) => <th key={c} className="w-32 pb-2 text-right">{COL_LABEL[c]}</th>)}
+                {FORM_COLS.map((c) => <th key={c} className="w-32 pb-2 text-right">{COL_LABEL[c]}</th>)}
                 <th className="w-36 pb-2">Bukti</th><th className="w-10" />
               </tr></thead>
               <tbody>
@@ -92,14 +97,19 @@ export function PmtForm({ id, initial, number, cancelHref }: {
                     <td className="py-1 pr-1 pt-3 text-muted">{i + 1}</td>
                     <td className="py-1 pr-1"><input type="date" aria-label={`Tanggal ${i + 1}`} className={inp} value={l.entry_date ?? ""} onChange={(e) => setLine(i, "entry_date", e.target.value)} /></td>
                     <td className="py-1 pr-1"><input aria-label={`Deskripsi ${i + 1}`} className={inp} value={l.description ?? ""} onChange={(e) => setLine(i, "description", e.target.value)} /></td>
-                    {PMT_COLS.map((c) => <td key={c} className="py-1 pr-1"><input aria-label={`${COL_LABEL[c]} ${i + 1}`} className={`${inp} text-right`} inputMode="text" value={l[c] ?? ""} onChange={(e) => setLine(i, c, e.target.value)} /></td>)}
+                    {FORM_COLS.map((c) => (
+                      <td key={c} className="py-1 pr-1">
+                        <input aria-label={`${COL_LABEL[c]} ${i + 1}`} className={`${inp} text-right`} inputMode="text" value={l[c] ?? ""} onChange={(e) => setLine(i, c, e.target.value)} />
+                        {c === "qris_bri" && sm(l.qris ?? "") > 0 && !(l.qris_mandiri ?? "").trim() && !(l.qris_bri ?? "").trim() && <span className="mt-1 block text-right text-xs text-muted">QRIS lama {fmtIn(sm(l.qris ?? ""))}, belum dipecah</span>}
+                      </td>
+                    ))}
                     <td className="py-1 pr-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /></td>
                     <td className="py-1 pt-2"><button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="rounded-md px-2 py-1 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button></td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-line font-bold">
                   <td /><td /><td className="py-3 text-right text-lg">Total</td>
-                  {PMT_COLS.map((c) => <td key={c} className="py-3 pr-3 text-right">{fmtRupiah(t[c])}</td>)}<td /><td />
+                  {FORM_COLS.map((c) => <td key={c} className="py-3 pr-3 text-right">{fmtRupiah(c === "qris_mandiri" || c === "qris_bri" ? sumCol(c) : t[c as PmtCol])}</td>)}<td /><td />
                 </tr>
               </tbody>
             </table>

@@ -14,6 +14,7 @@ import type { Rule } from "@/lib/docs/rules";
 import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
 import { JCP_FLAG_BG, JCP_FLAGS, JCP_SUMMARY_LABELS, jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
 import { loadNames } from "@/lib/pr/data";
+import { CRJ_SOURCE_LABEL, sumBy } from "@/lib/docs/crj";
 import { CW_CATS, cwCatFromCode, cwTotals, type CwCat } from "@/lib/docs/cw";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,8 +36,8 @@ const NEXT: Record<string, { when: string[]; label: string; href: (id: string) =
     { when: ["FINAL"], label: "Buat Analisa Pembelian", href: (id) => `/d/ap/baru?cw=${id}`, module: "purchase_analysis" },
     { when: ["FINAL"], label: "Jual non-karkas", href: (id) => `/d/ncs/baru?cw=${id}`, module: "noncarcass_sale" },
   ],
-  inv: [{ when: ["ISSUED", "PARTIAL"], label: "Catat pembayaran (CRJ)", href: (id) => `/d/crj/baru?inv=${id}`, module: "crj" }],
-  ncs: [{ when: ["CONFIRMED"], label: "Catat pembayaran (CRJ)", href: (id) => `/d/crj/baru?ncs=${id}`, module: "crj" }],
+  inv: [{ when: ["ISSUED", "PARTIAL"], label: "Catat pembayaran (CRJ)", href: (id) => `/d/jcr/baru?inv=${id}`, module: "crj" }],
+  ncs: [{ when: ["CONFIRMED"], label: "Catat pembayaran (CRJ)", href: (id) => `/d/jcr/baru?ncs=${id}`, module: "crj" }],
 };
 
 export default async function DocDetailPage({
@@ -197,6 +198,48 @@ export default async function DocDetailPage({
         </section>
       )}
 
+      {slug === "jcr" && (() => {
+        const rows = ((doc.cash_receipt_lines as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
+        const total = rows.reduce((t, r) => t + Number(r.amount), 0);
+        const accName = (r: Record<string, unknown>) => relOne(r.accounts as { name: string } | { name: string }[] | null)?.name ?? "-";
+        const perSource = sumBy(rows, (r) => String(r.source), (r) => Number(r.amount));
+        const perAccount = sumBy(rows, accName, (r) => Number(r.amount));
+        return (
+          <>
+            <section className="mt-8" aria-labelledby="t-crj-lines">
+              <h2 id="t-crj-lines" className="text-2xl font-bold">Baris penerimaan</h2>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface">
+                <table className="w-full min-w-[800px] text-left text-lg">
+                  <thead className="border-b border-line bg-background">
+                    <tr>{["#", "Sumber", "Tanggal", "Keterangan", "Rekening/Kas", "Jumlah", "Bukti"].map((h) => <th key={h} scope="col" className={`px-4 py-3 font-semibold ${h === "Jumlah" ? "text-right" : ""}`}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={String(r.id)} className="border-b border-line last:border-0">
+                        <td className="px-4 py-3 text-muted">{i + 1}</td><td className="px-4 py-3">{CRJ_SOURCE_LABEL[String(r.source)] ?? String(r.source)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{fmtDate(String(r.trans_date))}</td><td className="px-4 py-3">{String(r.description)}</td>
+                        <td className="px-4 py-3">{accName(r)}</td><td className="px-4 py-3 text-right tabular-nums">{fmtRupiah(Number(r.amount))}</td><td className="px-4 py-3">{String(r.proof ?? "")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr className="bg-background font-semibold"><td className="px-4 py-3" colSpan={5}>Total diterima</td><td className="px-4 py-3 text-right tabular-nums">{fmtRupiah(total)}</td><td /></tr></tfoot>
+                </table>
+              </div>
+            </section>
+            <section className="mt-6 grid gap-6 md:grid-cols-2" aria-label="Rekap penerimaan">
+              <div className="rounded-lg border border-line bg-surface p-4">
+                <h3 className="mb-2 font-bold uppercase tracking-wide text-muted">Per sumber</h3>
+                {perSource.map(([k, v]) => <p key={k} className="flex justify-between text-lg"><span>{CRJ_SOURCE_LABEL[k] ?? k}</span><b className="tabular-nums">{fmtRupiah(v)}</b></p>)}
+              </div>
+              <div className="rounded-lg border border-line bg-surface p-4">
+                <h3 className="mb-2 font-bold uppercase tracking-wide text-muted">Per rekening/kas</h3>
+                {perAccount.map(([k, v]) => <p key={k} className="flex justify-between text-lg"><span>{k}</span><b className="tabular-nums">{fmtRupiah(v)}</b></p>)}
+              </div>
+            </section>
+          </>
+        );
+      })()}
+
       {slug === "jcp" && (() => {
         const rows = ((doc.cash_journal_lines as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
         const done = status === "REALIZED";
@@ -296,7 +339,7 @@ export default async function DocDetailPage({
       })()}
 
       {cfg.children.map((c) => {
-        if (slug === "jcp" || slug === "cw") return null;
+        if (slug === "jcp" || slug === "cw" || slug === "jcr") return null;
         const rows = ((doc[c.table] as Record<string, unknown>[] | undefined) ?? []).slice().sort((x, y) => Number(x.line_no) - Number(y.line_no));
         if (rows.length === 0 && !c.required) return null;
         const totalVal = c.total ? rows.reduce((s, r) => s + Number(r[c.total!.qty]) * Number(r[c.total!.price]), 0) : null;

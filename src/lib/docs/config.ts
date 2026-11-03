@@ -1,5 +1,6 @@
 import type { Col, DocConfig, Field } from "./types.ts";
 import { cwCatFromCode } from "./cw.ts";
+import { CRJ_SOURCES } from "./crj.ts";
 
 const f = (name: string, label: string, kind: Field["kind"], extra: Partial<Field> = {}): Field => ({ name, label, kind, ...extra });
 const ref = (name: string, label: string, r: Field["ref"], extra: Partial<Field> = {}): Field => f(name, label, "ref", { ref: r, ...extra });
@@ -173,8 +174,8 @@ export const CONFIGS: Record<string, DocConfig> = {
     statuses: ["DRAFT", "ISSUED", "PARTIAL", "PAID", "VOID"], prefill: ["pl"],
   },
   crj: {
-    type: "CRJ", slug: "crj", module: "crj", title: "CRJ (Penerimaan)", singular: "CRJ",
-    intro: "Uang masuk. KOPRA hanya label metode bayar. Posting akan mengurangi piutang invoice yang dialokasikan.",
+    type: "CRJ", slug: "crj", module: "crj", title: "CRJ lama (per penerimaan)", singular: "CRJ lama",
+    intro: "Bentuk lama: satu penerimaan untuk satu pelanggan. Untuk rekap per periode dari Qurban, QRIS, setoran cash, dan tempo Horeka, pakai CRJ (Penerimaan) yang baru. Posting mengurangi piutang invoice yang dialokasikan.",
     table: "cash_receipts", select: "*, customers(name), accounts(name), payment_methods(name)",
     columns: [c("Nomor", "doc_number"), c("Tanggal", "receipt_date", "date"), c("Customer", "customers.name"), c("Rekening/Kas", "accounts.name"), c("Metode", "payment_methods.name"), c("Jumlah", "amount", "money"), c("Status", "status", "status")],
     header: [f("receipt_date", "Tanggal terima", "date", { required: true, today: true }), ref("customer_id", "Customer", "customers"), ref("account_id", "Masuk ke rekening/kas", "accounts", { required: true }), ref("payment_method_id", "Metode bayar", "payment_methods", { required: true }), f("amount", "Jumlah diterima", "money", { required: true }), f("reference", "No. referensi / bukti", "text"), notes],
@@ -187,6 +188,24 @@ export const CONFIGS: Record<string, DocConfig> = {
       fields: [ref("invoice_id", "Invoice", "invoices", { refStatus: ["ISSUED", "PARTIAL"] }), ref("ncs_id", "Penjualan non-karkas", "noncarcass_sales", { refStatus: ["CONFIRMED"] }), f("amount", "Jumlah", "money", { required: true })],
       columns: [c("Invoice", "invoices.doc_number"), c("Non-karkas", "noncarcass_sales.doc_number"), c("Jumlah", "amount", "money")],
       sum: { field: "amount", label: "Total alokasi" },
+    }],
+    statuses: ["DRAFT", "POSTED", "VOID"], prefill: ["inv", "ncs"],
+  },
+  jcr: {
+    type: "JCR", slug: "jcr", module: "crj", title: "CRJ (Penerimaan)", singular: "CRJ",
+    intro: "Rekap uang masuk per periode (biasanya satu minggu). Tarik baris dari closing lunas Qurban, pemeliharaan Qurban, QRIS toko, penyetoran cash toko, dan tempo Horeka, lalu pilih rekening tiap baris. Posting mengurangi piutang invoice pada baris tempo Horeka.",
+    table: "cash_receipt_journals", select: "*",
+    columns: [c("Nomor", "doc_number"), c("Dari", "period_from", "date"), c("Sampai", "period_to", "date"), c("Status", "status", "status")],
+    header: [f("period_from", "Periode dari", "date", { required: true }), f("period_to", "Periode sampai", "date", { required: true }), notes],
+    summary: [c("Periode dari", "period_from", "date"), c("Periode sampai", "period_to", "date"), c("Catatan", "notes")],
+    children: [{
+      key: "lines", title: "Baris penerimaan", table: "cash_receipt_lines", fk: "journal_id", required: true, select: "*, accounts(name)",
+      fields: [f("source", "Sumber", "select", { required: true, options: CRJ_SOURCES.map((x) => ({ value: x.value, label: x.label })) }),
+        f("trans_date", "Tanggal", "date", { required: true }), f("description", "Keterangan", "text", { required: true }),
+        ref("account_id", "Rekening/Kas", "accounts", { required: true }), f("amount", "Jumlah", "money", { required: true }), f("proof", "Bukti", "text"),
+        f("invoice_id", "Invoice", "text"), f("ncs_id", "Non-karkas", "text"), f("qurban_order_id", "Pesanan Qurban", "text"), f("qurban_bill_id", "Tagihan Qurban", "text"), f("src_ref", "Rujukan", "text")],
+      columns: [c("Sumber", "source"), c("Tanggal", "trans_date", "date"), c("Keterangan", "description"), c("Rekening/Kas", "accounts.name"), c("Jumlah", "amount", "money")],
+      sum: { field: "amount", label: "Total diterima" },
     }],
     statuses: ["DRAFT", "POSTED", "VOID"], prefill: ["inv", "ncs"],
   },
@@ -220,8 +239,8 @@ export const CONFIGS: Record<string, DocConfig> = {
     children: [
       {
         key: "lines", title: "Pemasukan", table: "store_income_lines", fk: "report_id", required: true, select: "*",
-        fields: [f("entry_date", "Tanggal", "date", { required: true }), f("description", "Deskripsi", "text", { required: true }), f("cash", "Cash", "smoney"), f("qris", "QRIS", "smoney"), f("debit", "Debit", "smoney"), f("grab", "Grab", "smoney"), f("tf", "TF Rek HMI", "smoney"), f("deposited", "Disetor", "smoney"), f("proof", "Bukti", "text"), ref("invoice_id", "Invoice", "invoices")],
-        columns: [c("Tanggal", "entry_date", "date"), c("Deskripsi", "description"), c("Cash", "cash", "money"), c("QRIS", "qris", "money"), c("Debit", "debit", "money"), c("Grab", "grab", "money"), c("TF Rek HMI", "tf", "money"), c("Disetor", "deposited", "money"), c("Bukti", "proof")],
+        fields: [f("entry_date", "Tanggal", "date", { required: true }), f("description", "Deskripsi", "text", { required: true }), f("cash", "Cash", "smoney"), f("qris", "QRIS", "smoney"), f("qris_mandiri", "QRIS Mandiri", "smoney"), f("qris_bri", "QRIS BRI", "smoney"), f("debit", "Debit", "smoney"), f("grab", "Grab", "smoney"), f("tf", "TF Rek HMI", "smoney"), f("deposited", "Disetor", "smoney"), f("proof", "Bukti", "text"), ref("invoice_id", "Invoice", "invoices")],
+        columns: [c("Tanggal", "entry_date", "date"), c("Deskripsi", "description"), c("Cash", "cash", "money"), c("QRIS", "qris", "money"), c("QRIS Mandiri", "qris_mandiri", "money"), c("QRIS BRI", "qris_bri", "money"), c("Debit", "debit", "money"), c("Grab", "grab", "money"), c("TF Rek HMI", "tf", "money"), c("Disetor", "deposited", "money"), c("Bukti", "proof")],
       },
       {
         key: "recv", title: "Piutang", table: "store_income_receivables", fk: "report_id", select: "*",
