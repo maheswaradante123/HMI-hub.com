@@ -5,10 +5,10 @@ import { listOrders } from "@/lib/qurban/data";
 import { MODE_LABEL, kg, rp, tgl } from "@/lib/qurban/format";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 
-// Pesanan dikelompokkan per tahap. "Sudah deal" = invoice sudah terbit (menunggu bayar atau lunas).
+// Pesanan dikelompokkan per tahap. "Sudah deal" = sudah dibayar (Lunas); proforma dan invoice yang belum dibayar tetap di Belum deal.
 const TABS = [
-  { key: "belum", label: "Belum deal", statuses: ["PROFORMA"], empty: "Tidak ada pesanan yang masih berupa proforma. Pesanan yang sudah deal ada di tab Sudah deal." },
-  { key: "deal", label: "Sudah deal", statuses: ["INVOICE", "PAID"], empty: "Belum ada pesanan yang deal. Pesanan masuk ke sini begitu invoice diterbitkan." },
+  { key: "belum", label: "Belum deal", statuses: ["PROFORMA", "INVOICE"], empty: "Tidak ada pesanan yang belum dibayar. Pesanan yang sudah lunas ada di tab Sudah deal." },
+  { key: "deal", label: "Sudah deal", statuses: ["PAID"], empty: "Belum ada pesanan yang lunas. Pesanan masuk ke sini begitu pembayarannya ditandai lunas." },
   { key: "batal", label: "Dibatalkan", statuses: ["CANCELLED"], empty: "Tidak ada pesanan yang dibatalkan." },
 ] as const;
 
@@ -20,7 +20,6 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
   const tab = TABS.find((t) => t.key === sp.tab) ?? TABS[0];
   const hitung = (t: (typeof TABS)[number]) => semua.filter((o) => (t.statuses as readonly string[]).includes(o.status)).length;
   const rows = semua.filter((o) => (tab.statuses as readonly string[]).includes(o.status));
-  const lunas = rows.filter((o) => o.status === "PAID").length;
   const tunggu = rows.filter((o) => o.status === "INVOICE").length;
   const nilai = rows.reduce((s, o) => s + (o.total - o.discount), 0);
 
@@ -28,7 +27,7 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
     <div>
       <Head
         title="Master Pesanan Qurban"
-        hint="Pesanan Qurban Cerdas per tahap. Yang sudah deal pindah ke tab Sudah deal. Klik kepala kolom untuk mengurutkan, ketik di kotak bawahnya untuk menyaring."
+        hint="Pesanan Qurban Cerdas per tahap. Yang sudah dibayar (deal) pindah ke tab Sudah deal. Klik kepala kolom untuk mengurutkan, ketik di kotak bawahnya untuk menyaring."
         action={session.can("qurban", "create") ? { href: "/qurban/baru", label: "+ Pesanan baru" } : undefined}
       />
       <nav aria-label="Tahap pesanan" className="mt-5 flex flex-wrap gap-2 border-b border-line">
@@ -44,8 +43,7 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
       </nav>
       <div className="mt-5 flex flex-wrap gap-3 text-lg">
         <span className="rounded-full bg-chip px-4 py-1.5">Pesanan: <b>{rows.length}</b></span>
-        {tab.key === "deal" && <span className="rounded-full bg-chip px-4 py-1.5">Menunggu bayar: <b>{tunggu}</b></span>}
-        {tab.key === "deal" && <span className="rounded-full bg-chip px-4 py-1.5">Lunas: <b>{lunas}</b></span>}
+        {tab.key === "belum" && <span className="rounded-full bg-chip px-4 py-1.5">Menunggu bayar: <b>{tunggu}</b></span>}
         <span className="rounded-full bg-chip px-4 py-1.5">Nilai setelah diskon: <b>{rp(nilai)}</b></span>
       </div>
       {rows.length === 0 ? <Empty>{semua.length === 0 ? "Belum ada pesanan. Mulai dari tombol Pesanan baru." : tab.empty}</Empty> : (
