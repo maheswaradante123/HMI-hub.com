@@ -5,29 +5,50 @@ import { listOrders } from "@/lib/qurban/data";
 import { MODE_LABEL, kg, rp, tgl } from "@/lib/qurban/format";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 
-export default async function MasterPesanan() {
+// Pesanan dikelompokkan per tahap. "Sudah deal" = invoice sudah terbit (menunggu bayar atau lunas).
+const TABS = [
+  { key: "belum", label: "Belum deal", statuses: ["PROFORMA"], empty: "Tidak ada pesanan yang masih berupa proforma. Pesanan yang sudah deal ada di tab Sudah deal." },
+  { key: "deal", label: "Sudah deal", statuses: ["INVOICE", "PAID"], empty: "Belum ada pesanan yang deal. Pesanan masuk ke sini begitu invoice diterbitkan." },
+  { key: "batal", label: "Dibatalkan", statuses: ["CANCELLED"], empty: "Tidak ada pesanan yang dibatalkan." },
+] as const;
+
+export default async function MasterPesanan({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const sp = await searchParams;
   const session = await requireSession();
   if (!session.can("qurban", "view")) return <Forbidden roleName={session.roleName} what="Qurban Cerdas" />;
-  const rows = await listOrders();
-  const aktif = rows.filter((o) => o.status !== "CANCELLED");
+  const semua = await listOrders();
+  const tab = TABS.find((t) => t.key === sp.tab) ?? TABS[0];
+  const hitung = (t: (typeof TABS)[number]) => semua.filter((o) => (t.statuses as readonly string[]).includes(o.status)).length;
+  const rows = semua.filter((o) => (tab.statuses as readonly string[]).includes(o.status));
   const lunas = rows.filter((o) => o.status === "PAID").length;
   const tunggu = rows.filter((o) => o.status === "INVOICE").length;
-  const nilai = aktif.reduce((s, o) => s + (o.total - o.discount), 0);
+  const nilai = rows.reduce((s, o) => s + (o.total - o.discount), 0);
 
   return (
     <div>
       <Head
         title="Master Pesanan Qurban"
-        hint="Semua pesanan Qurban Cerdas. Klik kepala kolom untuk mengurutkan, ketik di kotak bawahnya untuk menyaring."
+        hint="Pesanan Qurban Cerdas per tahap. Yang sudah deal pindah ke tab Sudah deal. Klik kepala kolom untuk mengurutkan, ketik di kotak bawahnya untuk menyaring."
         action={session.can("qurban", "create") ? { href: "/qurban/baru", label: "+ Pesanan baru" } : undefined}
       />
+      <nav aria-label="Tahap pesanan" className="mt-5 flex flex-wrap gap-2 border-b border-line">
+        {TABS.map((t) => {
+          const on = t.key === tab.key;
+          return (
+            <Link key={t.key} href={t.key === "belum" ? "/qurban" : `/qurban?tab=${t.key}`} aria-current={on ? "page" : undefined}
+              className={`-mb-px rounded-t-md border border-b-0 px-5 py-2.5 text-lg font-semibold ${on ? "border-line bg-surface text-brand" : "border-transparent text-muted hover:text-brand"}`}>
+              {t.label} <span className="ml-1 rounded-full bg-chip px-2.5 py-0.5 text-base">{hitung(t)}</span>
+            </Link>
+          );
+        })}
+      </nav>
       <div className="mt-5 flex flex-wrap gap-3 text-lg">
-        <span className="rounded-full bg-chip px-4 py-1.5">Pesanan aktif: <b>{aktif.length}</b></span>
-        <span className="rounded-full bg-chip px-4 py-1.5">Menunggu bayar: <b>{tunggu}</b></span>
-        <span className="rounded-full bg-chip px-4 py-1.5">Lunas: <b>{lunas}</b></span>
+        <span className="rounded-full bg-chip px-4 py-1.5">Pesanan: <b>{rows.length}</b></span>
+        {tab.key === "deal" && <span className="rounded-full bg-chip px-4 py-1.5">Menunggu bayar: <b>{tunggu}</b></span>}
+        {tab.key === "deal" && <span className="rounded-full bg-chip px-4 py-1.5">Lunas: <b>{lunas}</b></span>}
         <span className="rounded-full bg-chip px-4 py-1.5">Nilai setelah diskon: <b>{rp(nilai)}</b></span>
       </div>
-      {rows.length === 0 ? <Empty>Belum ada pesanan. Mulai dari tombol Pesanan baru.</Empty> : (
+      {rows.length === 0 ? <Empty>{semua.length === 0 ? "Belum ada pesanan. Mulai dari tombol Pesanan baru." : tab.empty}</Empty> : (
         <Table>
           <thead className="border-b border-line"><tr>
             {["No. Sapi", "Pelanggan", "Mulai", "Bobot awal", "Bobot terakhir", "Perawatan", "Total", "Sisa bayar", "Status", "Proforma/Invoice"].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}
