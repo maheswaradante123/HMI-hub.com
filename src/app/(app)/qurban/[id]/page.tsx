@@ -46,6 +46,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
               ["Beli kembali", `${rp(o.buyback_price)} / Kg`], ["Cara bayar perawatan", MODE_LABEL[o.pay_mode]],
               ["No. Proforma", o.pro_no ?? "-"], ["No. Invoice", o.inv_no ?? "-"],
               ["Jatuh tempo invoice", tgl(o.due_date)], ["Pilihan pemilik", o.owner_choice ? CHOICE_LABEL[o.owner_choice] : "Belum dipilih"],
+              ...(o.is_legacy ? [["Surat Perjanjian (arsip)", `JB: ${o.sp_jb_no ?? "-"} · PL: ${o.sp_pl_no ?? "-"}`] as [string, string]] : []),
               ...(o.cancel_reason ? [["Alasan batal", o.cancel_reason] as [string, string]] : []),
             ]} />
           </Card>
@@ -166,7 +167,11 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
         )}
       </Card>
 
-      {full && o.status !== "CANCELLED" && (
+      {full && o.is_legacy && (
+        <p className="rounded-md bg-warn-bg px-4 py-3 text-lg">Pesanan arsip dari Master Sapi 2026-2027. Nomor invoice dan kontrak sama dengan dokumen lama (satu nomor bisa dipakai beberapa sapi). Dokumen proforma dan invoice tidak dibuat ulang dari aplikasi.</p>
+      )}
+
+      {full && !o.is_legacy && o.status !== "CANCELLED" && (
         <Card title="Dokumen">
           <div className="flex flex-wrap gap-3">
             {canExport && <PdfPreview href={`/qurban/export/proforma/${id}`} title={`Pratinjau ${o.pro_no}`} xlsx={`/qurban/export/proforma/${id}`} />}

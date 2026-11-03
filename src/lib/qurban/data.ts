@@ -8,7 +8,7 @@ export type Order = {
   status: "PROFORMA" | "INVOICE" | "PAID" | "CANCELLED";
   pro_no: string | null; pro_date: string | null; inv_no: string | null; inv_date: string | null; due_date: string | null;
   paid_at: string | null; owner_choice: "SELF" | "SELL_OUT" | "SELL_BACK" | null; choice_date: string | null;
-  cancel_reason: string | null; total: number; due_amount: number; last_weight: number; bill_count: number;
+  cancel_reason: string | null; is_legacy: boolean; sp_jb_no: string | null; sp_pl_no: string | null; total: number; due_amount: number; last_weight: number; bill_count: number;
 };
 export type Weighing = { id: string; order_id: string; weigh_date: string; weight: number; note: string | null };
 export type Bill = {
