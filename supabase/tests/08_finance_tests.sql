@@ -73,7 +73,7 @@ begin
   -- CRJ bertahap
   v_crj1 := public.save_doc('CRJ', null, jsonb_build_object('customer_id', v_hotel, 'account_id', v_kas, 'payment_method_id', v_kopra, 'amount', 1000000),
      jsonb_build_object('items', jsonb_build_array(jsonb_build_object('invoice_id', v_inv, 'amount', 1000000))));
-  assert (select doc_number from public.cash_receipts where id = v_crj1) ~ '^CRJ-[0-9]{4}-[0-9]{4}$', 'nomor CRJ';
+  assert (select doc_number from public.cash_receipts where id = v_crj1) ~ '^CRJ-[0-9]{3}-[IVX]+-[0-9]{2}$', 'nomor CRJ mingguan: ' || (select doc_number from public.cash_receipts where id = v_crj1);
   perform public.doc_change_status('CRJ', v_crj1, 'POSTED');
   select status, paid_amount into v_st, v_n from public.invoices where id = v_inv;
   assert v_st = 'PARTIAL' and v_n = 1000000, 'invoice sebagian';

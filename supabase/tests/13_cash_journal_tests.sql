@@ -85,3 +85,19 @@ begin
   v_j := public.save_doc('JCP', null, jsonb_build_object('journal_date', '2026-04-20'));
   assert pg_temp.err(format($q$select public.doc_change_status('JCP', %L, 'WAITING')$q$, v_j)) = '22023', 'jurnal kosong';
 end $$;
+
+-- Nomor CRJ memakai sistem mingguan yang sama dengan CPJ (migrasi 0032)
+do $$
+declare a text; b text; c text;
+begin
+  insert into public.cash_receipts (receipt_date, account_id, payment_method_id, amount)
+    select '2026-04-08', (select id from public.accounts limit 1), (select id from public.payment_methods limit 1), 1000 returning doc_number into a;
+  insert into public.cash_receipts (receipt_date, account_id, payment_method_id, amount)
+    select '2026-04-09', (select id from public.accounts limit 1), (select id from public.payment_methods limit 1), 1000 returning doc_number into b;
+  insert into public.cash_receipts (receipt_date, account_id, payment_method_id, amount)
+    select '2026-04-01', (select id from public.accounts limit 1), (select id from public.payment_methods limit 1), 1000 returning doc_number into c;
+  assert a = 'CRJ-002-IV-26', 'nomor CRJ minggu: ' || a;
+  assert b = 'CRJ-002-IV-26-2', 'CRJ minggu sama diberi akhiran: ' || b;
+  assert c = 'CRJ-001-IV-26', 'CRJ minggu pertama: ' || c;
+  delete from public.cash_receipts where doc_number in (a, b, c);
+end $$;
