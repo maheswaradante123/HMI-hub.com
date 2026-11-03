@@ -25,8 +25,26 @@ def days(ym, start):
     last = (dt.date(y + (m == 12), m % 12 + 1, 1) - dt.timedelta(days=1))
     return max(0, (min(last, CARE_END) - max(first, start)).days + 1)
 
+def tier(w): return "350-599" if w < 600 else "600-699" if w < 700 else "700-799" if w < 800 else "800-899" if w < 900 else "900+"
+
+# Harga jual per kg mengikuti kelas harga (bukan harga total dibagi bobot, karena harga total sudah dinego).
+# Nilainya dibaca dari baris yang harga/kg-nya bulat, per (kelas bobot, tarif perawatan/hari).
+_votes = collections.defaultdict(collections.Counter)
+for _r in rows:
+    _w, _h, _c = num(_r["bobot"]), num(_r["harga"]), num(_r["care_hari"])
+    if _w and _h and _c and abs(_h / _w - round(_h / _w)) < 1e-6:
+        _votes[(tier(_w), _c)][round(_h / _w)] += 1
+CLASS_PRICE = {k: v.most_common(1)[0][0] for k, v in _votes.items()}
+
+MONTHLY_BUYERS = ("kiki", "fatimah", "dedi trimulyanto")   # hanya mereka yang membayar perawatan per bulan
+
+def deal_invoice(r):
+    m = re.search(r"Rp([\d,]+)", r["kanan"])
+    return float(m.group(1).replace(",", "")) if m else None
+
 notes = []
 conv = []
+nego = []
 def note(r, msg): notes.append(f"#{r['no']} {r['cow']} {r['nama']}: {msg}")
 
 data, seq = [], collections.defaultdict(int)
@@ -47,10 +65,12 @@ for r in rows:
         continue
     start = dt.date.fromisoformat(r["tgl_mulai"])
     buy_date = r["tgl_beli"] if r["tgl_beli"] and not r["tgl_beli"].startswith("?") else r["tgl_mulai"]
-    bp = harga / w
-    buy_price = round(bp, 2)
-    if abs(bp - round(bp)) > 1e-6:
-        note(r, f"harga beli/kg tidak bulat ({bp:.2f}); disimpan {buy_price:.2f}/Kg, total mengikuti Rp{harga:,.0f} +/- beberapa rupiah")
+    buy_price = float(CLASS_PRICE.get((tier(w), care), 0))
+    if not buy_price:
+        note(r, f"DILEWATI: harga jual kelas {tier(w)} dengan perawatan Rp{care:,.0f}/hari tidak ada di sheet")
+        continue
+    if abs(harga - w * buy_price) > 1:
+        nego.append(r["no"])
     months = [(ym, r["bulan"][ym]) for ym in YMS if r["bulan"][ym]["nilai"]]
     # cek nilai tagihan = hari x tarif
     for ym, v in months:
@@ -65,19 +85,42 @@ for r in rows:
     inv = r["inv"].strip()
     all_lunas = bool(months) and all(lunas)
     first_lunas = bool(months) and lunas[0]
-    if all_lunas or first_lunas:
+    is_monthly = r["nama"].lower().startswith(MONTHLY_BUYERS)
+    mode = "MONTHLY" if is_monthly else "FULL"
+    if is_monthly and "dedi" in r["nama"].lower():
+        status = "INVOICE"                                     # sesuai keterangan pemilik: Dedi belum lunas
+    elif is_monthly and "fatimah" in r["nama"].lower():
+        status = "PAID"                                        # bulan Oktober sudah Lunas, berarti invoice awal lunas
+        note(r, "bulan pertama tanpa label Lunas di sheet, tetapi tagihan Oktober Lunas; invoice awal dianggap lunas")
+    elif all_lunas or first_lunas:
         status = "PAID"
     elif inv.startswith("INV") or any(v["inv"].startswith("INV") for _, v in months):
         status = "INVOICE"
     else:
         status = "PROFORMA"
-    month_invs = {v["inv"] for _, v in months}
-    one_invoice = bool(months) and len(month_invs) == 1 and "" not in month_invs and inv_ok(next(iter(month_invs)))
-    mode = "FULL" if all_lunas or one_invoice or not months else "MONTHLY"
-    if not all_lunas and not first_lunas and any(lunas):
-        note(r, "ada bulan 'Lunas' tetapi bulan pertama tidak; status pesanan dibuat INVOICE (belum lunas), cek dan tandai lunas di aplikasi bila benar")
+    if not is_monthly and not all_lunas and not first_lunas and any(lunas):
+        note(r, "ada bulan 'Lunas' tetapi bulan pertama tidak; status dibuat belum lunas, tandai lunas di aplikasi bila benar")
+    # diskon = selisih total menurut aplikasi dengan angka yang disepakati di sheet
+    first_ym = start.strftime("%Y-%m")
+    if mode == "FULL":
+        yms, cur = [], dt.date(start.year, start.month, 1)
+        while cur <= CARE_END:
+            yms.append(cur.strftime("%Y-%m")); cur = dt.date(cur.year + (cur.month == 12), cur.month % 12 + 1, 1)
+        app_total = w * buy_price + sum(days(ym, start) * care for ym in yms)
+        target = deal_invoice(r)
+    else:
+        app_total = w * buy_price + days(first_ym, start) * care
+        fm = months[0] if months else None
+        target = harga + (num(fm[1]["nilai"]) if fm and fm[0] == first_ym else days(first_ym, start) * care)
+    discount = 0.0
+    if target is None:
+        note(r, "angka Deal Invoice tidak terbaca; diskon 0")
+    elif app_total - target >= 0:
+        discount = round(app_total - target, 2)
+    else:
+        note(r, f"Deal Invoice Rp{target:,.0f} lebih besar dari total aplikasi Rp{app_total:,.0f}; diskon 0 (total aplikasi lebih rendah Rp{target - app_total:,.0f})")
     bills = []
-    if mode == "MONTHLY" and status == "PAID":
+    if is_monthly and status == "PAID":
         prev_ok = True
         for i, (ym, v) in enumerate(months[1:], start=1):
             if not prev_ok:
@@ -95,7 +138,7 @@ for r in rows:
     for x in (inv, r["sp_jb"], r["sp_pl"]): seed(x)
     for _, v in months: seed(v["inv"])
     data.append({"cow": r["cow"], "nick": r["nama"], "start": r["tgl_mulai"], "buy_date": buy_date, "weight": w,
-                 "buy_price": buy_price, "care_price": care, "mode": mode, "status": status, "discount": care if r["no"] in conv else 0, "inv_no": inv_no, "pro_no": pro_no,
+                 "buy_price": buy_price, "care_price": care, "mode": mode, "status": status, "discount": discount, "inv_no": inv_no, "pro_no": pro_no,
                  "sp_jb": r["sp_jb"], "sp_pl": r["sp_pl"], "bills": bills})
 
 cnt = collections.Counter((d["status"], d["mode"]) for d in data)
@@ -105,5 +148,6 @@ sql = sql.replace("__DATA__", json.dumps(data, ensure_ascii=False)).replace(
 open(out, "w", encoding="utf-8").write(sql)
 print(f"{len(data)} pesanan, {sum(len(d['bills']) for d in data)} tagihan bulanan")
 print(dict(cnt))
+print(f"Harga pembelian di sheet berbeda dari bobot x harga kelas (nego) pada {len(nego)} pesanan; selisihnya masuk diskon")
 print(f"Catatan umum: {len(conv)} pesanan memakai hitungan bulan pertama tanpa hari mulai (sheet) sedangkan aplikasi menghitung hari mulai: {conv}")
 print("CATATAN:"); [print(" -", n) for n in notes]
