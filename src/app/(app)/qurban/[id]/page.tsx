@@ -8,7 +8,7 @@ import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, Dl, Pill, td, th } from "@/components/qurban/ui";
 import { Field, QForm, fieldCls } from "@/components/qurban/qform";
 import {
-  addWeighing, cancelOrder, createBill, issueInvoice, markBillPaid, markPaid, setDiscount,
+  addWeighing, cancelOrder, createBill, issueInvoice, markBillPaid, markPaid, setCareFixed, setDiscount,
 } from "../actions";
 
 const dl = "rounded-md border-2 border-line px-5 py-2.5 text-lg font-semibold hover:bg-background";
@@ -42,7 +42,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
               ["Pelanggan", o.customer_nick], ["Nomor sapi", o.cow_no], ["Mulai pemeliharaan", tgl(o.start_date)],
               ["Bobot awal", kg(o.initial_weight)], ["Bobot terakhir", kg(o.last_weight)],
               ["Kelas harga", `${o.class_min}${o.class_max ? `–${o.class_max}` : "+"} Kg`],
-              ["Harga beli", `${rp(o.buy_price)} / Kg`], ["Perawatan", `${rp(o.care_price)} / hari`],
+              ["Harga beli", `${rp(o.buy_price)} / Kg`], ["Perawatan", `${rp(o.care_price)} / hari${o.care_fixed ? " (tarif tetap)" : ""}`],
               ["Beli kembali", `${rp(o.buyback_price)} / Kg`], ["Cara bayar perawatan", MODE_LABEL[o.pay_mode]],
               ["No. Proforma", o.pro_no ?? "-"], ["No. Invoice", o.inv_no ?? "-"],
               ["Jatuh tempo invoice", tgl(o.due_date)], ["Pilihan pemilik", o.owner_choice ? CHOICE_LABEL[o.owner_choice] : "Belum dipilih"],
@@ -137,7 +137,16 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
               {o.status === "PAID" && session.can("qurban", "create") && (
                 <div className="mt-4"><QForm action={createBill.bind(null, id)} label="Buat tagihan bulan berikutnya" /></div>
               )}
-              <p className="mt-3 text-sm text-muted">Tarif tiap bulan mengikuti kelas bobot timbang terakhir sebelum bulan itu.</p>
+              <p className="mt-3 text-sm text-muted">
+                {o.care_fixed
+                  ? `Tarif tetap ${rp(o.care_price)} per hari untuk semua bulan, berapa pun bobot timbangannya.`
+                  : "Tarif tiap bulan mengikuti kelas bobot timbang terakhir sebelum bulan itu."}
+              </p>
+              {session.can("qurban", "approve") && o.status !== "CANCELLED" && (
+                <div className="mt-3">
+                  <QForm action={setCareFixed.bind(null, id, !o.care_fixed)} label={o.care_fixed ? "Kembali ke tarif kelas" : `Pakai tarif tetap ${rp(o.care_price)}/hari`} />
+                </div>
+              )}
             </Card>
           )}
         </>

@@ -138,7 +138,7 @@ for r in rows:
     for x in (inv, r["sp_jb"], r["sp_pl"]): seed(x)
     for _, v in months: seed(v["inv"])
     data.append({"cow": r["cow"], "nick": r["nama"], "start": r["tgl_mulai"], "buy_date": buy_date, "weight": w,
-                 "buy_price": buy_price, "care_price": care, "mode": mode, "status": status, "discount": discount, "inv_no": inv_no, "pro_no": pro_no,
+                 "buy_price": buy_price, "care_price": care, "care_fixed": bool(is_monthly and "dedi" in r["nama"].lower()), "mode": mode, "status": status, "discount": discount, "inv_no": inv_no, "pro_no": pro_no,
                  "sp_jb": r["sp_jb"], "sp_pl": r["sp_pl"], "bills": bills})
 
 cnt = collections.Counter((d["status"], d["mode"]) for d in data)

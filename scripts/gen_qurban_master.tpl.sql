@@ -28,14 +28,14 @@ begin
     end if;
     insert into public.qurban_orders (cow_no, customer_nick, start_date, initial_weight, pay_mode, class_min, class_max,
            buy_price, care_price, buyback_price, discount, status, pro_no, pro_date, inv_no, inv_date, due_date, paid_at,
-           is_legacy, sp_jb_no, sp_pl_no)
+           is_legacy, sp_jb_no, sp_pl_no, care_fixed)
     values (e->>'cow', e->>'nick', v_start, v_w, e->>'mode', v_cls.min_kg, v_cls.max_kg,
             (e->>'buy_price')::numeric, (e->>'care_price')::numeric, v_cls.buyback_price, (e->>'discount')::numeric, e->>'status',
             nullif(e->>'pro_no', ''), nullif(e->>'buy_date', '')::date,
             nullif(e->>'inv_no', ''), case when nullif(e->>'inv_no', '') is not null then (e->>'buy_date')::date end,
             case when nullif(e->>'inv_no', '') is not null then (e->>'buy_date')::date end,
             case when e->>'status' = 'PAID' then ((e->>'buy_date') || ' 12:00+07')::timestamptz end,
-            true, nullif(e->>'sp_jb', ''), nullif(e->>'sp_pl', ''))
+            true, nullif(e->>'sp_jb', ''), nullif(e->>'sp_pl', ''), coalesce((e->>'care_fixed')::boolean, false))
     returning id into v_id;
     insert into public.qurban_weighings (order_id, weigh_date, weight, note) values (v_id, v_start, v_w, 'Timbang awal (arsip)');
     n_o := n_o + 1;

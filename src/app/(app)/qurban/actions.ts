@@ -47,6 +47,14 @@ export async function setDiscount(id: string, _p: QState, f: FormData): Promise<
   return error ? { error: dbMessage(error) } : done("Diskon tersimpan.");
 }
 
+export async function setCareFixed(id: string, fixed: boolean, _p: QState, _f: FormData): Promise<QState> {
+  void _p; void _f;
+  const { session, supabase } = await ctx();
+  if (!session.can("qurban", "approve")) return { error: "Tarif perawatan tetap hanya boleh diatur oleh Owner." };
+  const { error } = await supabase.rpc("qurban_set_care_fixed", { p_id: id, p_fixed: fixed });
+  return error ? { error: dbMessage(error) } : done(fixed ? "Tagihan bulanan sekarang memakai tarif tetap." : "Tagihan bulanan kembali mengikuti tarif kelas.");
+}
+
 export async function issueInvoice(id: string, _p: QState, _f: FormData): Promise<QState> {
   void _f;
   const { supabase } = await ctx();
