@@ -2,13 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
-import { getLines, getOrder, listBills, listWeighings } from "@/lib/qurban/data";
+import { getLines, getOrder, listBills, listGroup, listOrders, listWeighings } from "@/lib/qurban/data";
 import { CHOICE_LABEL, MODE_LABEL, bulan, kg, rp, tgl, todayIso } from "@/lib/qurban/format";
 import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, Dl, Pill, td, th } from "@/components/qurban/ui";
 import { Field, QForm, fieldCls } from "@/components/qurban/qform";
 import {
-  addWeighing, cancelOrder, createBill, issueInvoice, markBillPaid, markPaid, setCareFixed, setDiscount,
+  addWeighing, cancelOrder, createBill, issueInvoice, markBillPaid, markPaid, mergeProforma, setCareFixed, setDiscount, ungroupOrder,
 } from "../actions";
 
 const dl = "rounded-md border-2 border-line px-5 py-2.5 text-lg font-semibold hover:bg-background";
@@ -24,6 +24,15 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const open = o.status === "PROFORMA" || o.status === "INVOICE";
   const canExport = session.can("qurban", "export");
+  // Sapi lain di proforma/invoice yang sama, dan (selagi proforma) sapi pelanggan ini yang bisa digabungkan.
+  const members = o.group_id ? (await listGroup(o.group_id)).filter((m) => m.pro_no === o.pro_no) : [];
+  const together = members.length > 1 ? members : [];
+  const canMerge = full && !o.is_legacy && o.status === "PROFORMA" && session.can("qurban", "edit");
+  const candidates = canMerge
+    ? (await listOrders()).filter((m) => m.id !== o.id && m.customer_nick === o.customer_nick && m.status === "PROFORMA" && !m.is_legacy && !m.group_id)
+    : [];
+  const sumOf = (k: "total" | "discount" | "down_payment") => together.reduce((a, m) => a + m[k], 0);
+  const n = together.length;
 
   return (
     <div className="space-y-6">
@@ -77,6 +86,56 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
             </div>
           </Card>
 
+          {(n > 0 || candidates.length > 0) && !o.is_legacy && (
+            <Card title={n > 0 ? `Satu ${o.status === "PROFORMA" ? "proforma" : "invoice"} untuk ${n} sapi` : "Gabungkan dengan sapi lain"}>
+              {n > 0 && (
+                <>
+                  <p className="mb-3 text-muted">Sapi-sapi ini memakai satu nomor ({o.inv_no ?? o.pro_no}) dan satu file proforma/invoice. Menerbitkan invoice dan menandai lunas berlaku untuk semuanya sekaligus.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-lg">
+                      <thead className="border-b border-line"><tr>{["Sapi", "Bobot awal", "Total", "Diskon", "Status"].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {together.map((m) => (
+                          <tr key={m.id} className="border-b border-line">
+                            <td className={td}>{m.id === o.id ? <b>{m.cow_no} (ini)</b> : <Link href={`/qurban/${m.id}`} className="font-semibold text-brand underline">{m.cow_no}</Link>}</td>
+                            <td className={`${td} text-right tabular-nums`}>{kg(m.initial_weight)}</td>
+                            <td className={`${td} text-right tabular-nums`}>{rp(m.total)}</td>
+                            <td className={`${td} text-right tabular-nums`}>{rp(m.discount)}</td>
+                            <td className={td}><Pill status={m.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="text-right font-semibold">
+                        <tr><td colSpan={2} className={td}>Jumlah {n} sapi</td><td className={`${td} tabular-nums`}>{rp(sumOf("total"))}</td><td className={`${td} tabular-nums`}>{rp(sumOf("discount"))}</td><td className={td} /></tr>
+                        <tr><td colSpan={2} className={td}>Setelah diskon</td><td className={`${td} tabular-nums`} colSpan={3}>{rp(sumOf("total") - sumOf("discount"))}</td></tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-sm text-muted">Diskon diisi per sapi di halaman masing-masing; di file gabungan semuanya dijumlahkan.</p>
+                </>
+              )}
+              {n > 0 && o.status === "PROFORMA" && session.can("qurban", "edit") && (
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="mb-2 text-muted">Sapi ini mau dipisah ke proforma sendiri (dapat nomor baru)?</p>
+                  <QForm action={ungroupOrder.bind(null, id)} label={`Keluarkan sapi ${o.cow_no} dari proforma gabungan`} />
+                </div>
+              )}
+              {candidates.length > 0 && (
+                <div className={n > 0 ? "mt-4 border-t border-line pt-4" : ""}>
+                  <p className="mb-2 font-semibold">Sapi {o.customer_nick} lain yang masih proforma</p>
+                  <p className="mb-3 text-muted">Centang yang mau dijadikan satu file dengan sapi {o.cow_no}. Cocok kalau pelanggan menambah sapi di hari berbeda sebelum invoice terbit. Nomor proforma sapi yang digabung diganti dengan {o.pro_no}.</p>
+                  <QForm action={mergeProforma.bind(null, id)} label="Gabungkan yang dicentang">
+                    <ul className="space-y-2">
+                      {candidates.map((m) => (
+                        <li key={m.id}><label className="flex items-center gap-3 text-lg"><input type="checkbox" name="merge" value={m.id} className="h-5 w-5" /> Sapi {m.cow_no} · {kg(m.initial_weight)} · {rp(m.total - m.discount)} · {m.pro_no}</label></li>
+                      ))}
+                    </ul>
+                  </QForm>
+                </div>
+              )}
+            </Card>
+          )}
+
           {open && (
             <Card title="Negosiasi dan penerbitan">
               <div className="grid gap-6 md:grid-cols-2">
@@ -90,10 +149,10 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
                 )}
                 <div className="space-y-4">
                   {o.status === "PROFORMA" && session.can("qurban", "edit") && (
-                    <QForm action={issueInvoice.bind(null, id)} label="Terbitkan invoice" />
+                    <QForm action={issueInvoice.bind(null, id)} label={n > 1 ? `Terbitkan invoice (${n} sapi)` : "Terbitkan invoice"} />
                   )}
                   {o.status === "INVOICE" && session.can("qurban", "edit") && (
-                    <QForm action={markPaid.bind(null, id)} label="Tandai lunas" />
+                    <QForm action={markPaid.bind(null, id)} label={n > 1 ? `Tandai lunas (${n} sapi)` : "Tandai lunas"} />
                   )}
                 </div>
               </div>
@@ -184,10 +243,10 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
         <Card title="Dokumen">
           <div className="flex flex-wrap gap-3">
             {canExport && <PdfPreview href={`/qurban/export/proforma/${id}`} title={`Pratinjau ${o.pro_no}`} xlsx={`/qurban/export/proforma/${id}`} />}
-            {canExport && <a href={`/qurban/export/proforma/${id}?format=pdf`} className={dl}>Unduh Proforma (PDF)</a>}
+            {canExport && <a href={`/qurban/export/proforma/${id}?format=pdf`} className={dl}>Unduh Proforma{n > 1 ? ` ${n} sapi` : ""} (PDF)</a>}
             {canExport && <a href={`/qurban/export/proforma/${id}`} className={dl}>Proforma (Excel)</a>}
             {canExport && o.inv_no && <PdfPreview href={`/qurban/export/invoice/${id}`} title={`Pratinjau ${o.inv_no}`} xlsx={`/qurban/export/invoice/${id}`} />}
-            {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}?format=pdf`} className={dl}>Unduh Invoice (PDF)</a>}
+            {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}?format=pdf`} className={dl}>Unduh Invoice{n > 1 ? ` ${n} sapi` : ""} (PDF)</a>}
             {canExport && o.inv_no && <a href={`/qurban/export/invoice/${id}`} className={dl}>Invoice (Excel)</a>}
             {o.status === "PAID" && <Link href={`/qurban/sp/${id}`} className={dl}>Surat Perjanjian</Link>}
             {o.status === "PAID" && <Link href="/qurban/pilihan" className={dl}>Pilihan Pemilik</Link>}

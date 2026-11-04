@@ -8,7 +8,7 @@ export type Order = {
   status: "PROFORMA" | "INVOICE" | "PAID" | "CANCELLED";
   pro_no: string | null; pro_date: string | null; inv_no: string | null; inv_date: string | null; due_date: string | null;
   paid_at: string | null; owner_choice: "SELF" | "SELL_OUT" | "SELL_BACK" | null; choice_date: string | null;
-  cancel_reason: string | null; is_legacy: boolean; care_fixed: boolean; sp_jb_no: string | null; sp_pl_no: string | null; total: number; due_amount: number; last_weight: number; bill_count: number;
+  cancel_reason: string | null; group_id: string | null; is_legacy: boolean; care_fixed: boolean; sp_jb_no: string | null; sp_pl_no: string | null; total: number; due_amount: number; last_weight: number; bill_count: number;
 };
 export type Weighing = { id: string; order_id: string; weigh_date: string; weight: number; note: string | null };
 export type Bill = {
@@ -36,6 +36,14 @@ const ORDER_NUM = ["initial_weight", "class_min", "class_max", "buy_price", "car
 export async function listOrders(): Promise<Order[]> {
   const supabase = await createClient();
   const { data } = await supabase.from("v_qurban_orders").select("*").order("created_at", { ascending: false }).limit(1000);
+  return (data ?? []).map((r) => num(r as Order, ORDER_NUM));
+}
+
+// Pesanan yang tergabung dalam satu proforma/invoice (tanpa yang dibatalkan), urut pembuatan.
+export async function listGroup(groupId: string): Promise<Order[]> {
+  if (!/^[0-9a-f-]{36}$/i.test(groupId)) return [];
+  const supabase = await createClient();
+  const { data } = await supabase.from("v_qurban_orders").select("*").eq("group_id", groupId).neq("status", "CANCELLED").order("created_at").order("cow_no");
   return (data ?? []).map((r) => num(r as Order, ORDER_NUM));
 }
 

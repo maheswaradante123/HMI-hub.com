@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listOrders } from "@/lib/qurban/data";
 import { MODE_LABEL, kg, rp, tgl } from "@/lib/qurban/format";
+import { groupSizes } from "@/lib/qurban/group";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 
 // Pesanan dikelompokkan per tahap. "Sudah deal" = sudah dibayar (Lunas); proforma dan invoice yang belum dibayar tetap di Belum deal.
@@ -20,6 +21,7 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
   const tab = TABS.find((t) => t.key === sp.tab) ?? TABS[0];
   const hitung = (t: (typeof TABS)[number]) => semua.filter((o) => (t.statuses as readonly string[]).includes(o.status)).length;
   const rows = semua.filter((o) => (tab.statuses as readonly string[]).includes(o.status));
+  const ukuran = groupSizes(semua);
   const tunggu = rows.filter((o) => o.status === "INVOICE").length;
   const nilai = rows.reduce((s, o) => s + (o.total - o.discount), 0);
 
@@ -63,7 +65,7 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
                 <td className={`${td} text-right tabular-nums`}>{rp(o.total)}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(o.due_amount)}</td>
                 <td className={td}><Pill status={o.status} /></td>
-                <td className={td}>{o.inv_no ?? o.pro_no}</td>
+                <td className={td}>{o.inv_no ?? o.pro_no}{o.group_id && (ukuran.get(o.group_id) ?? 0) > 1 && <span className="ml-2 rounded-full bg-chip px-2.5 py-0.5 text-sm">gabungan {ukuran.get(o.group_id)} sapi</span>}</td>
               </tr>
             ))}
           </tbody>

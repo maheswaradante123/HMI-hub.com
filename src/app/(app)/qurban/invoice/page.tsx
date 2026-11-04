@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listBills, listOrders } from "@/lib/qurban/data";
 import { bulan, rp, tgl } from "@/lib/qurban/format";
+import { collapseGroups } from "@/lib/qurban/group";
 import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 import { QForm } from "@/components/qurban/qform";
@@ -18,12 +19,13 @@ export default async function InvoicePage() {
 
   type Row = { key: string; no: string; jenis: string; tanggal: string; tempo: string; nick: string; cow: string; amount: number; status: string; orderId: string; xls: string; pay?: React.ReactNode };
   const rows: Row[] = [];
-  for (const o of orders) {
-    if (!o.inv_no) continue;
+  for (const { head: o, members: m } of collapseGroups(orders.filter((x) => x.inv_no))) {
+    const n = m.length;
     rows.push({
-      key: `o${o.id}`, no: o.inv_no, jenis: "Invoice awal", tanggal: o.inv_date ?? "", tempo: o.due_date ?? "", nick: o.customer_nick, cow: o.cow_no,
-      amount: o.due_amount, status: o.status, orderId: o.id, xls: `/qurban/export/invoice/${o.id}`,
-      pay: o.status === "INVOICE" && canEdit ? <QForm action={markPaid.bind(null, o.id)} label="Tandai lunas" /> : undefined,
+      key: `o${o.id}`, no: o.inv_no!, jenis: n > 1 ? `Invoice awal (${n} sapi)` : "Invoice awal", tanggal: o.inv_date ?? "", tempo: o.due_date ?? "", nick: o.customer_nick,
+      cow: n > 1 ? m.map((x) => x.cow_no).join(", ") : o.cow_no,
+      amount: m.reduce((a, x) => a + x.due_amount, 0), status: o.status, orderId: o.id, xls: `/qurban/export/invoice/${o.id}`,
+      pay: o.status === "INVOICE" && canEdit ? <QForm action={markPaid.bind(null, o.id)} label={n > 1 ? `Tandai lunas (${n} sapi)` : "Tandai lunas"} /> : undefined,
     });
   }
   for (const b of bills) {

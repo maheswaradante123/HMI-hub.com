@@ -26,16 +26,42 @@ function done(msg: string, ids?: string): QState {
 export async function createOrder(_p: QState, f: FormData): Promise<QState> {
   const { session, supabase } = await ctx();
   if (!session.can("qurban", "create")) return { error: "Anda tidak memiliki izin membuat pesanan Qurban." };
-  const weight = decPlain(f, "weight");
-  if (!(weight > 0)) return { error: "Hasil timbang harus berupa angka lebih dari 0 (contoh 612,5)." };
   const start = str(f, "start");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return { error: "Tanggal mulai pemeliharaan wajib diisi." };
-  const { data, error } = await supabase.rpc("qurban_create_order", {
-    p_cow: str(f, "cow"), p_nick: str(f, "nick"), p_weight: weight, p_start: start, p_mode: str(f, "mode"),
-  });
+  // Satu baris per sapi: cow_1/weight_1, cow_2/weight_2, ... (daftar dikirim form dalam "rows").
+  const idx = str(f, "rows").split(",").filter((x) => /^\d+$/.test(x));
+  const cows: { cow: string; weight: number }[] = [];
+  for (const i of idx) {
+    const cow = str(f, `cow_${i}`);
+    const weight = decPlain(f, `weight_${i}`);
+    if (!cow && !str(f, `weight_${i}`)) continue; // baris kosong dilewati
+    if (!cow) return { error: `Nomor sapi pada baris ${cows.length + 1} wajib diisi.` };
+    if (!(weight > 0)) return { error: `Hasil timbang sapi ${cow} harus berupa angka lebih dari 0 (contoh 612,5).` };
+    cows.push({ cow, weight });
+  }
+  if (cows.length === 0) return { error: "Isi minimal satu sapi." };
+  const { data, error } = await supabase.rpc("qurban_create_orders", { p_nick: str(f, "nick"), p_start: start, p_mode: str(f, "mode"), p_cows: cows });
   if (error) return { error: dbMessage(error) };
   revalidatePath("/qurban", "layout");
   redirect(`/qurban/${data}`);
+}
+
+// Gabungkan pesanan PROFORMA pelanggan yang sama ke dalam satu proforma (dan nanti satu invoice).
+export async function mergeProforma(id: string, _p: QState, f: FormData): Promise<QState> {
+  const { session, supabase } = await ctx();
+  if (!session.can("qurban", "edit")) return { error: "Anda tidak memiliki izin menggabungkan pesanan." };
+  const ids = f.getAll("merge").map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  if (ids.length === 0) return { error: "Centang minimal satu sapi yang mau digabung." };
+  const { error } = await supabase.rpc("qurban_merge_proforma", { p_id: id, p_ids: ids });
+  return error ? { error: dbMessage(error) } : done(`${ids.length} sapi digabung ke proforma ini.`);
+}
+
+export async function ungroupOrder(id: string, _p: QState, _f: FormData): Promise<QState> {
+  void _f;
+  const { session, supabase } = await ctx();
+  if (!session.can("qurban", "edit")) return { error: "Anda tidak memiliki izin memisahkan pesanan." };
+  const { data, error } = await supabase.rpc("qurban_ungroup", { p_id: id });
+  return error ? { error: dbMessage(error) } : done(`Sapi dikeluarkan dari proforma gabungan. Nomor baru: ${data}.`);
 }
 
 export async function setDiscount(id: string, _p: QState, f: FormData): Promise<QState> {
