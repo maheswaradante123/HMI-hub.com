@@ -6,6 +6,9 @@ export function dbMessage(error: { code?: string; message?: string }): string {
     case "22023":
     case "P0002":
       return error.message ?? "Aksi tidak dapat dilakukan.";
+    case "PGRST202":
+    case "42883":
+      return "Fitur ini butuh pembaruan database yang belum dijalankan. Minta Owner menjalankan file migrasi terbaru di Supabase SQL Editor (lihat panduan pembaruan), lalu coba lagi.";
     case "23505":
       return "Data ganda: nomor atau kombinasi ini sudah dipakai dokumen lain yang masih aktif.";
     case "23503":
