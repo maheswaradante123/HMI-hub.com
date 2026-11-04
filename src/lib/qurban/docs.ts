@@ -13,6 +13,7 @@ const LATE = "Jika saat tanggal jatuh tempo belum dilakukan pelunasan pembayaran
 export type InvoiceDoc = {
   varian: "qurban"; judul: string; nomor: string; tanggal: string; kepada: string;
   baris: { desc: string; qty: number; unit: string; harga: number }[];
+  blok?: { desc: string; qty: number; unit: string; harga: number }[][];
   diskon?: number; uangMuka: number; tampilTotal: boolean; jatuhTempo: string; catatan: string;
 };
 
@@ -25,24 +26,20 @@ async function members(o: Order, field: "pro_no" | "inv_no"): Promise<Order[]> {
   return list.length ? list : [o];
 }
 
-// Baris gabungan: tiap sapi menyumbang barisnya; bila lebih dari satu sapi, baris perawatan diberi nomor sapinya.
-async function groupRows(list: Order[]) {
-  const rows: ReturnType<typeof toRows> = [];
-  for (const m of list) {
-    const L = await getLines(m.id);
-    rows.push(...toRows(list.length > 1 ? L.map((l) => (l.unit === "Hari" ? { ...l, descr: `${l.descr} · Sapi ${m.cow_no}` } : l)) : L));
-  }
-  return rows;
+// Satu blok baris per sapi (judul kolom dan subtotal per sapi, seperti contoh proforma beberapa sapi).
+async function groupBlocks(list: Order[]) {
+  return Promise.all(list.map(async (m) => toRows(await getLines(m.id))));
 }
 const sum = (list: Order[], k: "discount" | "down_payment") => list.reduce((s, m) => s + Number(m[k] ?? 0), 0);
 
 export async function proformaDoc(o: Order): Promise<InvoiceDoc> {
   const list = await members(o, "pro_no");
+  const blocks = await groupBlocks(list);
   const pro = o.pro_date ?? o.start_date;
   const diskon = sum(list, "discount");
   return {
     varian: "qurban", judul: "PROFORMA-INVOICE", nomor: o.pro_no ?? "", tanggal: pro, kepada: o.customer_nick,
-    baris: await groupRows(list), diskon: diskon ? diskon : undefined, uangMuka: sum(list, "down_payment"), tampilTotal: true,
+    baris: blocks.flat(), blok: blocks, diskon: diskon ? diskon : undefined, uangMuka: sum(list, "down_payment"), tampilTotal: true,
     jatuhTempo: addDays(pro, 1),
     catatan: `Validitas proforma invoice berlaku selama 2 hari hingga tanggal ${tglEn(addDays(pro, 1))}`,
   };
@@ -50,9 +47,10 @@ export async function proformaDoc(o: Order): Promise<InvoiceDoc> {
 
 export async function invoiceDoc(o: Order): Promise<InvoiceDoc> {
   const list = await members(o, "inv_no");
+  const blocks = await groupBlocks(list);
   return {
     varian: "qurban", judul: "INVOICE", nomor: o.inv_no ?? "", tanggal: o.inv_date ?? o.start_date, kepada: o.customer_nick,
-    baris: await groupRows(list), diskon: sum(list, "discount"), uangMuka: sum(list, "down_payment"), tampilTotal: false,
+    baris: blocks.flat(), blok: blocks, diskon: sum(list, "discount"), uangMuka: sum(list, "down_payment"), tampilTotal: false,
     jatuhTempo: o.due_date ?? addDays(o.inv_date ?? o.start_date, 1), catatan: LATE,
   };
 }

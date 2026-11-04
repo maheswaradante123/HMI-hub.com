@@ -99,34 +99,17 @@ export async function buatInvoiceXlsx(data) {
   mrow(r++, "Kepada", data.kepada, data.telepon ? ["No. Telepon", data.telepon, false, 0] : null, 1);
   ws.getRow(r).height = toko ? 10 : 18.5; r++;
 
-  // --- tabel
-  ws.getRow(r).height = toko ? 19 : 14;
-  ["No", "Deskripsi", "Qty", "Satuan", "Harga Per Satuan", "Total", "Keterangan"].forEach((h, i) => {
-    const c = ws.getCell(r, i + 1); c.value = h; c.font = F({ bold: true }); c.fill = fill(HEAD); c.border = box;
-    c.alignment = { horizontal: "center", vertical: "middle" };
-  });
-  r++;
-  let total = 0;
-  data.baris.forEach((b, i) => {
-    ws.getRow(r).height = toko ? 14.5 : 12.2;
-    const jumlah = b.qty * b.harga; total += jumlah;
-    const vals = [i + 1, b.desc, b.qty, b.unit, b.harga, jumlah, ""];
-    vals.forEach((v, k) => {
-      const c = ws.getCell(r, k + 1); c.value = v; c.font = F(); c.border = box;
-      if (k === 0 || k === 2 || k === 3) c.alignment = { horizontal: "center", vertical: "middle" };
-      else c.alignment = { vertical: "middle" };
-      if (k === 2) c.numFmt = "#,##0.###";
-      if (k === 4 || k === 5) {
-        c.numFmt = toko ? '"Rp"#,##0' : '_("Rp"* #,##0_);_("Rp"* (#,##0);_("Rp"* 0_);_(@_)';
-        c.alignment = { horizontal: toko ? "center" : undefined, vertical: "middle" };
-      }
+  // --- tabel (satu blok per sapi bila ada beberapa sapi; tiap blok punya judul kolom dan subtotal)
+  const blocks = data.blok && data.blok.length > 1 ? data.blok : [data.baris];
+  const multi = blocks.length > 1;
+  const headerRow = () => {
+    ws.getRow(r).height = toko ? 19 : 14;
+    ["No", "Deskripsi", "Qty", "Satuan", "Harga Per Satuan", "Total", "Keterangan"].forEach((h, i) => {
+      const c = ws.getCell(r, i + 1); c.value = h; c.font = F({ bold: true }); c.fill = fill(HEAD); c.border = box;
+      c.alignment = { horizontal: "center", vertical: "middle" };
     });
     r++;
-  });
-
-  // --- ringkasan
-  const diskon = data.diskon || 0, dp = data.uangMuka || 0;
-  const kurang = total - diskon - dp;
+  };
   const label = (row, text) => {
     ws.mergeCells(row, 1, row, 2);
     const c = ws.getCell(row, 1); c.value = text; c.font = F({ size: 11, bold: true, color: { argb: GREY } }); c.alignment = { vertical: "middle" };
@@ -149,9 +132,41 @@ export async function buatInvoiceXlsx(data) {
     }
     r++;
   };
-  if (data.tampilTotal) sumRow("Total", total);
-  sumRow("Total Pembelanjaan", data.tampilTotal ? total - diskon : total);
-  if (!data.tampilTotal && data.diskon !== undefined) sumRow("Discount", diskon);
+  let total = 0;
+  blocks.forEach((rows, bi) => {
+    headerRow();
+    let sub = 0;
+    rows.forEach((b, i) => {
+      ws.getRow(r).height = toko ? 14.5 : 12.2;
+      const jumlah = b.qty * b.harga; total += jumlah; sub += jumlah;
+      const vals = [i + 1, b.desc, b.qty, b.unit, b.harga, jumlah, ""];
+      vals.forEach((v, k) => {
+        const c = ws.getCell(r, k + 1); c.value = v; c.font = F(); c.border = box;
+        if (k === 0 || k === 2 || k === 3) c.alignment = { horizontal: "center", vertical: "middle" };
+        else c.alignment = { vertical: "middle", shrinkToFit: k === 1 };
+        if (k === 2) c.numFmt = "#,##0.###";
+        if (k === 4 || k === 5) {
+          c.numFmt = toko ? '"Rp"#,##0' : '_("Rp"* #,##0_);_("Rp"* (#,##0);_("Rp"* 0_);_(@_)';
+          c.alignment = { horizontal: toko ? "center" : undefined, vertical: "middle" };
+        }
+      });
+      r++;
+    });
+    if (multi) sumRow("Total", sub);
+    void bi;
+  });
+
+  // --- ringkasan
+  const diskon = data.diskon || 0, dp = data.uangMuka || 0;
+  const kurang = total - diskon - dp;
+  if (multi) {
+    sumRow("Total Pembelanjaan", total);
+    if (diskon > 0) sumRow("Discount", diskon);
+  } else {
+    if (data.tampilTotal) sumRow("Total", total);
+    sumRow("Total Pembelanjaan", data.tampilTotal ? total - diskon : total);
+    if (!data.tampilTotal && data.diskon !== undefined) sumRow("Discount", diskon);
+  }
   sumRow("Uang Muka", dp, { filled: false, blank: !data.tampilTotal && !dp && !toko ? true : false });
   sumRow("Kekurangan", kurang);
   // terbilang

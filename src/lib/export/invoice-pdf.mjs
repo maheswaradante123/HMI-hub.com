@@ -31,7 +31,7 @@ export async function buatInvoicePdf(d) {
   const arial = await pdf.embedFont(await read("fonts", "LiberationSans-Regular.ttf"), { subset: true });
   const logo = await pdf.embedPng(await read("assets", "hmi-logo.png"));
   const sign = await pdf.embedPng(await read("assets", "sig-hunain-inv.png"));
-  const page = pdf.addPage([W, H]);
+  let page = pdf.addPage([W, H]);
 
   const T = (s, x, top, size, font = reg, color = BLACK, skew = 0) =>
     page.drawText(s, { x, y: H - top - (font === arial ? BASE_ARIAL : BASE) * size, size, font, color, ...(skew ? { ySkew: degrees(skew) } : {}) });
@@ -44,6 +44,7 @@ export async function buatInvoicePdf(d) {
   // Gambar dicampur mode "multiply" supaya latar putih tanda tangan tidak menutupi logo di bawahnya.
   const gs = pdf.context.register(pdf.context.obj({ Type: "ExtGState", BM: "Multiply" }));
   page.node.setExtGState(PDFName.of("GSM"), gs);
+  const newPage = () => { page = pdf.addPage([W, H]); page.node.setExtGState(PDFName.of("GSM"), gs); };
   const img = (im, x0, x1, top, bot) => {
     page.pushOperators(pushGraphicsState(), setGraphicsState(PDFName.of("GSM")));
     page.drawImage(im, { x: x0, y: H - bot, width: x1 - x0, height: bot - top });
@@ -59,43 +60,72 @@ export async function buatInvoicePdf(d) {
     T(l, 51.8, top, 7.03, bold); T(":", 77.4, top, 7.03, bold); T(v, 86.4, top, 7.03);
   });
 
-  // tabel
-  const rows = d.baris;
-  const y0 = 173.4 + 10.1 * rows.length; // garis bawah tabel
-  rect(49.9, RIGHT, 163.1, 173.7, HEAD);
-  ["No", "Deskripsi", "Qty", "Satuan", "Harga Per Satuan", "Total", "Keterangan"].forEach((h, i) => centerIn(h, COL[i], COL[i + 1], 168.2, 8.32, bold));
-  let tot = 0;
-  rows.forEach((b, i) => {
-    const top = 178.3 + 10.1 * i, j = b.qty * b.harga;
-    tot += j;
-    centerIn(String(i + 1), COL[0], COL[1], top, 8.32);
-    T(b.desc, 86.4, top, 8.32);
-    centerIn(Number(b.qty).toLocaleString("en-US", { maximumFractionDigits: 2 }), COL[2], COL[3], top, 8.32);
-    centerIn(b.unit, COL[3], COL[4], top, 8.32);
-    T("Rp", 363.5, top, 8.32); rightAt(num(b.harga), 405.4, top, 8.32);
-    const nTxt = num(j), nx = 470.2 - wd(nTxt, 8.32);
-    T("Rp", nx - 7.3 - wd("Rp", 8.32), top, 8.32); T(nTxt, nx, top, 8.32);
+  // tabel: satu blok per sapi bila proforma/invoice berisi beberapa sapi (tiap blok punya judul kolom dan subtotal sendiri)
+  const blocks = d.blok && d.blok.length > 1 ? d.blok : [d.baris];
+  const multi = blocks.length > 1;
+  const SZ = 8.32, ROW = 10.1, LIMIT = H - 62;
+  const rpAmount = (v, top) => { const s = num(v), x = 543.1 - wd(s, 9.6, bold); T(s, x, top, 9.6, bold); T("Rp", x - 8.4 - wd("Rp", 9.6, bold), top, 9.6, bold); };
+  let y = 163.4, segTop = y, tot = 0;
+  const headAt = () => {
+    rect(49.9, RIGHT, y - 0.3, y + 10.3, HEAD);
+    ["No", "Deskripsi", "Qty", "Satuan", "Harga Per Satuan", "Total", "Keterangan"].forEach((h, i) => centerIn(h, COL[i], COL[i + 1], y + 4.8, SZ, bold));
+    hline(49.9, RIGHT, y); y += 10; hline(49.9, RIGHT, y);
+  };
+  const flush = () => { COL.forEach((x) => vline(x, segTop - 0.3, y + 0.2)); vline(50.1, segTop - 0.3, y + 0.2); };
+  headAt();
+  blocks.forEach((rows, bi) => {
+    let sub = 0;
+    if (bi > 0) { // judul kolom diulang untuk sapi berikutnya
+      if (y + ROW * 3 > LIMIT) { flush(); newPage(); y = 50; segTop = y; }
+      headAt();
+    }
+    rows.forEach((b, i) => {
+      if (y + ROW > LIMIT) { flush(); newPage(); y = 50; segTop = y; headAt(); }
+      const top = y + 4.9, j = b.qty * b.harga;
+      sub += j; tot += j;
+      centerIn(String(i + 1), COL[0], COL[1], top, SZ);
+      // deskripsi yang terlalu panjang dikecilkan supaya tidak menimpa kolom Qty
+      const fit = Math.min(SZ, SZ * (COL[2] - 86.4 - 3) / Math.max(wd(b.desc, SZ), 1));
+      T(b.desc, 86.4, top + (SZ - fit) * 0.2, fit);
+      centerIn(Number(b.qty).toLocaleString("en-US", { maximumFractionDigits: 2 }), COL[2], COL[3], top, SZ);
+      centerIn(b.unit, COL[3], COL[4], top, SZ);
+      T("Rp", 363.5, top, SZ); rightAt(num(b.harga), 405.4, top, SZ);
+      const nTxt = num(j), nx = 470.2 - wd(nTxt, SZ);
+      T("Rp", nx - 7.3 - wd("Rp", SZ), top, SZ); T(nTxt, nx, top, SZ);
+      y += ROW; hline(49.9, RIGHT, y);
+    });
+    flush();
+    if (multi) { // subtotal per sapi
+      rect(238.0, RIGHT, y - 0.25, y + 11.75, ORANGE);
+      T("Total", 51.8, y + 4.95, 9.6, bold, GRAY);
+      rpAmount(sub, y + 4.95);
+      y += 12; hline(LEFT, RIGHT, y);
+    }
+    segTop = y;
   });
-  hline(49.9, RIGHT, 163.4);
-  for (let k = 0; k <= rows.length; k++) hline(49.9, RIGHT, 173.4 + 10.1 * k);
-  COL.forEach((x) => vline(x, 163.1, y0 + 0.2));
-  vline(50.1, 163.1, y0 + 0.2);
+  const y0 = y;
 
   // ringkasan
   const dsk = d.diskon || 0, dp = d.uangMuka || 0, kur = tot - dsk - dp;
   const sum = [];
-  if (d.tampilTotal) sum.push(["Total", tot, true]);
-  sum.push(["Total Pembelanjaan", d.tampilTotal ? tot - dsk : tot, true]);
-  if (!d.tampilTotal && d.diskon !== undefined) sum.push(["Discount", dsk, true]);
+  if (multi) {
+    sum.push(["Total Pembelanjaan", tot, true]);
+    if (dsk > 0) sum.push(["Discount", dsk, true]);
+  } else {
+    if (d.tampilTotal) sum.push(["Total", tot, true]);
+    sum.push(["Total Pembelanjaan", d.tampilTotal ? tot - dsk : tot, true]);
+    if (!d.tampilTotal && d.diskon !== undefined) sum.push(["Discount", dsk, true]);
+  }
   sum.push(["Uang Muka", dp, false], ["Kekurangan", kur, true]);
-  let top = y0 - 0.25;
+  // ringkasan + rekening + tanda tangan butuh sekitar 190 pt; pindah halaman bila tidak muat
+  if (y0 + 12 * (sum.length + 1) + 125 > H - 20) { newPage(); y = 50; }
+  let top = (y === 50 ? 50 : y0) - 0.25;
   sum.forEach(([lbl, v, fill], k) => {
     if (fill) rect(238.0, RIGHT, top, top + 12, ORANGE);
     if (fill && lbl !== "Kekurangan") vline(238.2, top, top + 12, rgb(0.7176, 0.7176, 0.7176));
     T(lbl, 51.8, top + 5.2, 9.6, bold, GRAY);
     if (lbl !== "Uang Muka" || proforma || dp > 0) { // pada invoice, uang muka kosong dibiarkan tanpa angka
-      const s = num(v), x = 543.1 - wd(s, 9.6, bold);
-      T(s, x, top + 5.2, 9.6, bold); T("Rp", x - 8.4 - wd("Rp", 9.6, bold), top + 5.2, 9.6, bold);
+      rpAmount(v, top + 5.2);
     }
     top += 12; hline(LEFT, RIGHT, top);
   });
