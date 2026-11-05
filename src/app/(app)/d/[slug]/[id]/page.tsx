@@ -164,7 +164,7 @@ export default async function DocDetailPage({
 
       {slug === "pmt" && (() => {
         const t = pmtTotals((doc.store_income_lines as Record<string, number>[]) ?? [], (doc.store_income_receivables as { amount: number }[]) ?? []);
-        const L: Record<string, string> = { cash: "Cash", qris: "QRIS", debit: "Debit", grab: "Grab", tf: "TF Rek HMI", deposited: "Disetor" };
+        const L: Record<string, string> = { cash: "Cash", qris: "QRIS", debit: "Debit", tf: "TF Rek HMI", deposited: "Disetor" };
         return (
           <section className="mt-6 rounded-lg border border-line bg-surface p-5" aria-labelledby="tot-pmt">
             <h2 id="tot-pmt" className="text-2xl font-bold">Total</h2>

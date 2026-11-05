@@ -129,7 +129,7 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
     return (
       <div>
         <h1 className="mb-6 text-3xl font-bold">Ubah Pemasukan Toko {String(doc.doc_number)}</h1>
-        <PmtForm id={id} initial={{ header: header as Record<string, string>, lines: rowsOf("lines", ["entry_date", "description", "cash", "qris", "qris_mandiri", "qris_bri", "debit", "grab", "tf", "deposited", "proof", "invoice_id"], ["cash", "qris", "qris_mandiri", "qris_bri", "debit", "grab", "tf", "deposited"]), recv: rowsOf("recv", ["name", "amount"], ["amount"]) }} number={String(doc.doc_number)} cancelHref={`/d/pmt/${id}`} />
+        <PmtForm id={id} initial={{ header: header as Record<string, string>, lines: rowsOf("lines", ["entry_date", "description", "cash", "qris", "qris_mandiri", "qris_bri", "debit", "debit_mandiri", "debit_bri", "tf", "deposited", "proof", "invoice_id"], ["cash", "qris", "qris_mandiri", "qris_bri", "debit", "debit_mandiri", "debit_bri", "tf", "deposited"]), recv: rowsOf("recv", ["name", "amount"], ["amount"]) }} number={String(doc.doc_number)} cancelHref={`/d/pmt/${id}`} />
       </div>
     );
   }

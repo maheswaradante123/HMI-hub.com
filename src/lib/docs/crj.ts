@@ -3,6 +3,8 @@ export const CRJ_SOURCES = [
   { value: "QURBAN_CLOSING", label: "Closing lunas Qurban Cerdas", short: "Closing Qurban" },
   { value: "QURBAN_CARE", label: "Pemeliharaan Qurban Cerdas", short: "Pemeliharaan Qurban" },
   { value: "QRIS", label: "QRIS toko", short: "QRIS toko" },
+  { value: "DEBIT", label: "Debit toko", short: "Debit toko" },
+  { value: "TF", label: "Transfer ke rekening HMI (toko)", short: "Transfer toko" },
   { value: "CASH_DEPOSIT", label: "Penyetoran cash toko", short: "Setoran cash" },
   { value: "HOREKA", label: "Tempo Horeka (invoice)", short: "Tempo Horeka" },
   { value: "NONKARKAS", label: "Penjualan non-karkas", short: "Non-karkas" },

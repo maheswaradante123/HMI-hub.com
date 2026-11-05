@@ -193,7 +193,7 @@ export const CONFIGS: Record<string, DocConfig> = {
   },
   jcr: {
     type: "JCR", slug: "jcr", module: "crj", title: "CRJ (Penerimaan)", singular: "CRJ",
-    intro: "Rekap uang masuk per periode (biasanya satu minggu). Tarik baris dari closing lunas Qurban, pemeliharaan Qurban, QRIS toko, penyetoran cash toko, dan tempo Horeka, lalu pilih rekening tiap baris. Posting mengurangi piutang invoice pada baris tempo Horeka.",
+    intro: "Rekap uang masuk per periode (biasanya satu minggu). Tarik baris dari closing lunas Qurban, pemeliharaan Qurban, semua kolom bank di Pemasukan Toko (QRIS, Debit, TF Rek HMI, Disetor), dan tempo Horeka, lalu pilih rekening tiap baris. Posting mengurangi piutang invoice pada baris tempo Horeka.",
     table: "cash_receipt_journals", select: "*",
     columns: [c("Nomor", "doc_number"), c("Dari", "period_from", "date"), c("Sampai", "period_to", "date"), c("Status", "status", "status")],
     header: [f("period_from", "Periode dari", "date", { required: true }), f("period_to", "Periode sampai", "date", { required: true }), notes],
@@ -231,7 +231,7 @@ export const CONFIGS: Record<string, DocConfig> = {
   },
   pmt: {
     type: "PMT", slug: "pmt", module: "store_income", title: "Pemasukan Toko", singular: "Pemasukan Toko",
-    intro: "Laporan pemasukan toko per periode: Cash, QRIS, Debit, Grab, TF Rek HMI, setoran, dan piutang. Baris pembayaran invoice bisa ditarik otomatis.",
+    intro: "Laporan pemasukan toko per periode: Cash, QRIS, Debit, TF Rek HMI, setoran, dan piutang. Baris pembayaran invoice bisa ditarik otomatis.",
     table: "store_income_reports", select: "*",
     columns: [c("Nomor", "doc_number"), c("Dari", "period_from", "date"), c("Sampai", "period_to", "date"), c("Status", "status", "status")],
     header: [f("period_from", "Periode dari", "date", { required: true }), f("period_to", "Periode sampai", "date", { required: true }), notes],
@@ -239,8 +239,8 @@ export const CONFIGS: Record<string, DocConfig> = {
     children: [
       {
         key: "lines", title: "Pemasukan", table: "store_income_lines", fk: "report_id", required: true, select: "*",
-        fields: [f("entry_date", "Tanggal", "date", { required: true }), f("description", "Deskripsi", "text", { required: true }), f("cash", "Cash", "smoney"), f("qris", "QRIS", "smoney"), f("qris_mandiri", "QRIS Mandiri", "smoney"), f("qris_bri", "QRIS BRI", "smoney"), f("debit", "Debit", "smoney"), f("grab", "Grab", "smoney"), f("tf", "TF Rek HMI", "smoney"), f("deposited", "Disetor", "smoney"), f("proof", "Bukti", "text"), ref("invoice_id", "Invoice", "invoices")],
-        columns: [c("Tanggal", "entry_date", "date"), c("Deskripsi", "description"), c("Cash", "cash", "money"), c("QRIS", "qris", "money"), c("QRIS Mandiri", "qris_mandiri", "money"), c("QRIS BRI", "qris_bri", "money"), c("Debit", "debit", "money"), c("Grab", "grab", "money"), c("TF Rek HMI", "tf", "money"), c("Disetor", "deposited", "money"), c("Bukti", "proof")],
+        fields: [f("entry_date", "Tanggal", "date", { required: true }), f("description", "Deskripsi", "text", { required: true }), f("cash", "Cash", "smoney"), f("qris", "QRIS", "smoney"), f("qris_mandiri", "QRIS Mandiri", "smoney"), f("qris_bri", "QRIS BRI", "smoney"), f("debit", "Debit", "smoney"), f("debit_mandiri", "Debit Mandiri", "smoney"), f("debit_bri", "Debit BRI", "smoney"), f("tf", "TF Rek HMI", "smoney"), f("deposited", "Disetor", "smoney"), f("proof", "Bukti", "text"), ref("invoice_id", "Invoice", "invoices")],
+        columns: [c("Tanggal", "entry_date", "date"), c("Deskripsi", "description"), c("Cash", "cash", "money"), c("QRIS", "qris", "money"), c("QRIS Mandiri", "qris_mandiri", "money"), c("QRIS BRI", "qris_bri", "money"), c("Debit", "debit", "money"), c("Debit Mandiri", "debit_mandiri", "money"), c("Debit BRI", "debit_bri", "money"), c("TF Rek HMI", "tf", "money"), c("Disetor", "deposited", "money"), c("Bukti", "proof")],
       },
       {
         key: "recv", title: "Piutang", table: "store_income_receivables", fk: "report_id", select: "*",

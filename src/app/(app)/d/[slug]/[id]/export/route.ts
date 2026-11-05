@@ -203,17 +203,17 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
   if (slug === "pmt") {
     const { data: rep } = await supabase
       .from("store_income_reports")
-      .select("doc_number, period_from, period_to, store_income_lines(entry_date, description, cash, qris, debit, grab, tf, deposited, created_at), store_income_receivables(name, amount, created_at)")
+      .select("doc_number, period_from, period_to, store_income_lines(entry_date, description, cash, qris, debit, tf, deposited, created_at), store_income_receivables(name, amount, created_at)")
       .eq("id", id).is("deleted_at", null).maybeSingle();
     if (!rep) return NextResponse.json({ error: "Laporan tidak ditemukan." }, { status: 404 });
-    type L = { entry_date: string | null; description: string; cash: number; qris: number; debit: number; grab: number; tf: number; deposited: number; created_at: string };
+    type L = { entry_date: string | null; description: string; cash: number; qris: number; debit: number; tf: number; deposited: number; created_at: string };
     type Rc = { name: string; amount: number; created_at: string };
     const ls = [...((rep.store_income_lines as unknown as L[]) ?? [])].sort((a, b) => (a.entry_date ?? "").localeCompare(b.entry_date ?? "") || a.created_at.localeCompare(b.created_at));
     const rs = [...((rep.store_income_receivables as unknown as Rc[]) ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const total = pmtTotals(ls, rs);
     const data = {
       nomor: rep.doc_number, dari: rep.period_from, sampai: rep.period_to,
-      baris: ls.map((l) => ({ tanggal: l.entry_date, desc: l.description, cash: Number(l.cash), qris: Number(l.qris), debit: Number(l.debit), grab: Number(l.grab), tf: Number(l.tf), deposited: Number(l.deposited) })),
+      baris: ls.map((l) => ({ tanggal: l.entry_date, desc: l.description, cash: Number(l.cash), qris: Number(l.qris), debit: Number(l.debit), tf: Number(l.tf), deposited: Number(l.deposited) })),
       piutang: rs.map((x) => ({ nama: x.name, jumlah: Number(x.amount) })), total,
     };
     const safeP = String(rep.doc_number).replace(/[^A-Za-z0-9._-]+/g, "_");

@@ -77,7 +77,7 @@ export function CrjForm({ id, initial, number, cancelHref, accounts }: {
 
         <section>
           <h2 className="mb-1 text-sm font-bold uppercase tracking-widest text-muted">Tarik dari</h2>
-          <p className="mb-3 text-muted">Closing, pemeliharaan, QRIS, dan setoran mengikuti periode di atas. Tempo Horeka menampilkan semua invoice yang masih ada sisa tagihan.</p>
+          <p className="mb-3 text-muted">Closing, pemeliharaan, dan semua kolom Pemasukan Toko (QRIS, Debit, TF Rek HMI, Disetor) mengikuti periode di atas. QRIS atau Debit yang belum dipecah per bank di Pemasukan Toko tidak ikut tertarik. Tempo Horeka menampilkan semua invoice yang masih ada sisa tagihan.</p>
           <div className="flex flex-wrap gap-2">
             {CRJ_PULLABLE.map((s) => (
               <button key={s.value} type="button" onClick={() => openPull(s.value)} disabled={busy} className="rounded-md border-2 border-brand px-4 py-2 font-semibold text-brand hover:bg-background disabled:opacity-60">{s.label}</button>

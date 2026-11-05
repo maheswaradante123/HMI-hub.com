@@ -11,10 +11,10 @@ const W = 792, H = 612;
 const BASE = 0.4284, BASE_ARIAL = 0.8034;
 const BLACK = rgb(0, 0, 0);
 const GRAY = rgb(0.8, 0.8, 0.8);
-const X = [50.3, 74.4, 133.3, 260.8, 329.8, 398.9, 463.3, 527.8, 596.9, 665.9, 742.0];
+const X = [50.3, 74.4, 133.3, 268.0, 343.0, 418.0, 493.0, 568.0, 643.0, 742.0];
 const L = 50.3, R = 742.2, BOTTOM = 550.7, ROW = 9.7, SUM = 11.6;
-const CODES = ["cash", "qris", "debit", "grab", "tf", "deposited"]; // kolom ke-4..9
-const HEAD = ["NO", "TANGGAL", "DESCRIPTION", "CASH", "QRIS", "DEBIT", "GRAB", "TF REK HMI", "DISETOR", "Attachment Of Proof"];
+const CODES = ["cash", "qris", "debit", "tf", "deposited"]; // kolom ke-4..8
+const HEAD = ["NO", "TANGGAL", "DESCRIPTION", "CASH", "QRIS", "DEBIT", "TF REK HMI", "DISETOR", "Attachment Of Proof"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -28,7 +28,7 @@ export const tglPanjang = (iso) => {
 };
 const num = (n) => Math.abs(Math.round(n)).toLocaleString("en-US");
 
-/** d: {nomor, dari, sampai, baris[{tanggal, desc, cash,qris,debit,grab,tf,deposited}], piutang[{nama, jumlah}], total{cash..deposited, mustDeposit, income}} */
+/** d: {nomor, dari, sampai, baris[{tanggal, desc, cash,qris,debit,tf,deposited}], piutang[{nama, jumlah}], total{cash..deposited, mustDeposit, income}} */
 export async function buatPemasukanTokoPdf(d) {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
@@ -105,13 +105,12 @@ export async function buatPemasukanTokoPdf(d) {
   const lastTop = y;
   const lbl = "Total Pendapatan"; const t = y + 5.0;
   T(lbl, 259.1 - wd(lbl, 7.42, bold), t, 7.42, bold);
-  const s = num(tt.income), xr = X[10 - 1 + 0] + 0; // kolom DISETOR (indeks 8) -> sisi kanan X[9]
-  const left = X[9] - 1.6 - wd(s, 7.42, bold); T(s, left, t, 7.42, bold); T("Rp", left - 15.0, t, 7.42, bold);
+  const s = num(tt.income); // kolom DISETOR (indeks 7) -> sisi kanan X[8]
+  const left = X[8] - 1.6 - wd(s, 7.42, bold); T(s, left, t, 7.42, bold); T("Rp", left - 15.0, t, 7.42, bold);
   y += SUM; hline(L, R, y);
   // garis tegak
-  [X[0], X[3], X[9], X[10]].forEach((x) => vline(x, y0, y));
+  [X[0], X[3], X[8], X[9]].forEach((x) => vline(x, y0, y));
   [X[1], X[2]].forEach((x) => vline(x, y0, dataEnd));
-  [X[4], X[5], X[6], X[7], X[8]].forEach((x) => vline(x, y0, lastTop));
-  void xr;
+  [X[4], X[5], X[6], X[7]].forEach((x) => vline(x, y0, lastTop));
   return pdf.save();
 }
