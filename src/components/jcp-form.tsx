@@ -60,7 +60,7 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
 
   const payload = JSON.stringify({ header: h, children: { lines } });
   return (
-    <form action={action} noValidate className="max-w-[1600px]">
+    <form action={action} noValidate className="max-w-[1900px]">
       <input type="hidden" name="payload" value={payload} />
       <div className="space-y-8 rounded-2xl border border-line bg-white p-6 shadow-sm">
         <section>
@@ -105,11 +105,11 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
           <datalist id="jcp-ac">{JCP_AC.map((a) => <option key={a} value={a} />)}</datalist>
           <datalist id="jcp-code">{JCP_CODES.map((a) => <option key={a} value={a} />)}</datalist>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1700px] text-left">
+            <table className="w-full min-w-[1780px] table-fixed text-left">
               <thead><tr className="text-sm uppercase tracking-wide text-muted">
-                <th className="w-8 pb-2">No</th><th className="w-36 pb-2">Tanggal</th><th className="w-24 pb-2">A/C</th><th className="w-24 pb-2">Kode</th><th className="pb-2">Description</th>
-                <th className="w-32 pb-2 text-right">Price</th><th className="w-24 pb-2 text-right">Qty</th><th className="w-24 pb-2">Unit</th><th className="w-36 pb-2 text-right">Amount</th><th className="w-56 pb-2">Jenis baris</th>
-                <th className="w-32 pb-2 text-right">Real. Price</th><th className="w-24 pb-2 text-right">Real. Qty</th><th className="w-36 pb-2 text-right">Real. Amount</th><th className="w-44 pb-2">Bukti</th><th className="w-10" />
+                <th className="w-8 pb-2">No</th><th className="w-[136px] pb-2">Tanggal</th><th className="w-[88px] pb-2">A/C</th><th className="w-[88px] pb-2">Kode</th><th className="w-[360px] pb-2">Description</th>
+                <th className="w-[112px] pb-2 pr-1 text-right">Price</th><th className="w-20 pb-2 pr-1 text-right">Qty</th><th className="w-20 pb-2">Unit</th><th className="w-32 pb-2 pr-2 text-right">Amount</th><th className="w-[140px] pb-2">Jenis baris</th>
+                <th className="w-[112px] pb-2 pr-1 text-right">Real. Price</th><th className="w-20 pb-2 pr-1 text-right">Real. Qty</th><th className="w-32 pb-2 pr-2 text-right">Real. Amount</th><th className="w-[176px] pb-2">Bukti</th><th className="w-10" />
               </tr></thead>
               <tbody>
                 {lines.map((l, i) => {
