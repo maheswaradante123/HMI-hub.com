@@ -65,6 +65,13 @@ begin
       jsonb_build_object('trans_date','2026-04-04','ac','OPR','code','BP','description','Konsentrat','price',200000,'qty',140,'unit','sak','pr_item_id',v_item,'real_price',198500,'real_qty',140,'proof','BP KONSENTRAT.jpg'),
       jsonb_build_object('trans_date','2026-04-05','ac','OPR','code','BO','description','Bensin','price',30000,'qty',1,'unit','pcs','real_price',20000,'real_qty',1))));
   assert (select real_price from public.cash_journal_lines where journal_id = v_j and line_no = 1) = 198500, 'realisasi tersimpan';
+  -- tanggal baris dan tanggal jurnal boleh diganti setelah ACC (rencana lain tetap terkunci)
+  perform public.save_doc('JCP', v_j, jsonb_build_object('journal_date', '2026-04-09'),
+    jsonb_build_object('lines', jsonb_build_array(
+      jsonb_build_object('trans_date','2026-04-08','ac','OPR','code','BP','description','Konsentrat','price',200000,'qty',140,'unit','sak','pr_item_id',v_item,'real_price',198500,'real_qty',140,'proof','BP KONSENTRAT.jpg'),
+      jsonb_build_object('trans_date','2026-04-10','ac','OPR','code','BO','description','Bensin','price',30000,'qty',1,'unit','pcs','real_price',20000,'real_qty',1))));
+  assert (select trans_date from public.cash_journal_lines where journal_id = v_j and line_no = 2) = date '2026-04-10', 'tanggal baris bisa diganti setelah ACC';
+  assert (select journal_date from public.cash_journals where id = v_j) = date '2026-04-09', 'tanggal jurnal bisa diganti setelah ACC';
 
   -- realisasi: barang PR yang RECEIVED menjadi CLOSED
   reset role; update public.pr_items set status = 'RECEIVED' where id = v_item; perform pg_temp.u(acc);

@@ -67,7 +67,7 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
           <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-muted">Jurnal</h2>
           <div className="grid gap-4 md:grid-cols-4">
             <div><label className={lab}>Nomor</label><input className={`${inp} bg-background text-muted`} readOnly value={number || "Otomatis saat disimpan"} /></div>
-            <div><label className={lab} htmlFor="jc-date">Tanggal jurnal *</label><input id="jc-date" type="date" className={inp} disabled={locked} value={h.journal_date ?? ""} onChange={(e) => setH((x) => ({ ...x, journal_date: e.target.value }))} /></div>
+            <div><label className={lab} htmlFor="jc-date">Tanggal jurnal *</label><input id="jc-date" type="date" className={inp} value={h.journal_date ?? ""} onChange={(e) => setH((x) => ({ ...x, journal_date: e.target.value }))} /></div>
             <div className="md:col-span-2"><label className={lab} htmlFor="jc-pay">Keterangan pembayaran</label><input id="jc-pay" className={inp} value={h.pay_note ?? ""} onChange={(e) => setH((x) => ({ ...x, pay_note: e.target.value }))} /></div>
             <div><label className={lab} htmlFor="jc-in">Initiator</label><input id="jc-in" className={inp} value={h.initiator_name ?? ""} onChange={(e) => setH((x) => ({ ...x, initiator_name: e.target.value }))} /></div>
             <div><label className={lab} htmlFor="jc-int">Jabatan initiator</label><input id="jc-int" className={inp} value={h.initiator_title ?? ""} onChange={(e) => setH((x) => ({ ...x, initiator_title: e.target.value }))} /></div>
@@ -82,7 +82,7 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
             <h2 className="text-sm font-bold uppercase tracking-widest text-muted">Baris jurnal</h2>
             {!locked && <button type="button" onClick={openPull} disabled={busy} className="rounded-md border-2 border-brand px-4 py-2 font-semibold text-brand hover:bg-background disabled:opacity-60">Tarik dari Purchase Request</button>}
           </div>
-          {locked && <p className="mb-3 rounded-md bg-warn-bg px-4 py-3">Jurnal sudah di-ACC Owner. Kolom rencana terkunci; isi harga, qty, dan bukti realisasi sesuai pembayaran sebenarnya. Kolom yang dikosongkan dianggap sama dengan rencana saat realisasi diselesaikan.</p>}
+          {locked && <p className="mb-3 rounded-md bg-warn-bg px-4 py-3">Jurnal sudah di-ACC Owner. Kolom rencana terkunci, kecuali tanggal yang masih bisa diganti; isi harga, qty, dan bukti realisasi sesuai pembayaran sebenarnya. Kolom yang dikosongkan dianggap sama dengan rencana saat realisasi diselesaikan.</p>}
           {pull && pull.length > 0 && (
             <div className="mb-4 rounded-lg border-2 border-brand p-4">
               <p className="mb-2 font-semibold">Pilih item Purchase Request yang akan dibayar minggu ini</p>
@@ -117,7 +117,7 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
                   return (
                     <tr key={i} className={`align-top ${JCP_FLAG_BG[l.flag] ?? ""}`}>
                       <td className="py-1 pr-1 pt-3 text-muted">{i + 1}</td>
-                      <td className="py-1 pr-1"><input type="date" aria-label={`Tanggal ${i + 1}`} disabled={locked} className={inp} value={l.trans_date ?? ""} onChange={(e) => setLine(i, "trans_date", e.target.value)} /></td>
+                      <td className="py-1 pr-1"><input type="date" aria-label={`Tanggal ${i + 1}`} className={inp} value={l.trans_date ?? ""} onChange={(e) => setLine(i, "trans_date", e.target.value)} /></td>
                       <td className="py-1 pr-1"><input list="jcp-ac" aria-label={`A/C ${i + 1}`} disabled={locked} className={inp} value={l.ac ?? ""} onChange={(e) => setLine(i, "ac", e.target.value.toUpperCase())} /></td>
                       <td className="py-1 pr-1"><input list="jcp-code" aria-label={`Kode ${i + 1}`} disabled={locked} className={inp} value={l.code ?? ""} onChange={(e) => setLine(i, "code", e.target.value.toUpperCase())} /></td>
                       <td className="py-1 pr-1"><input aria-label={`Description ${i + 1}`} disabled={locked} className={inp} value={l.description ?? ""} onChange={(e) => setLine(i, "description", e.target.value)} /></td>
