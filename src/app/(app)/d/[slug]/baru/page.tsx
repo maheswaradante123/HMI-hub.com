@@ -72,7 +72,7 @@ export default async function NewDocPage({
       <div>
         <p className="text-sm text-muted"><Link href="/d/prod" className="underline">Production Order</Link> › Baru</p>
         <h1 className="text-3xl font-bold">Production Order Baru</h1>
-        <p className="mb-6 mt-1 text-muted">Publish date = hari ini. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
+        <p className="mb-6 mt-1 text-muted">Publish date awalnya hari ini dan bisa diganti. Detail pesanan ditarik dari RO; nama produk boleh diganti.</p>
         <PoForm id="" initial={initial} ros={ros} products={lists.products} today={today} number="" cancelHref="/d/prod" />
       </div>
     );

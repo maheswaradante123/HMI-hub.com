@@ -54,7 +54,7 @@ export function PoForm({ id, initial, ros, products, today, number, cancelHref }
     const hit = products.find((p) => p.name.toLowerCase() === t || `${p.code} - ${p.name}`.toLowerCase() === t);
     setItem(i, { _text: text, product_id: hit?.id ?? "" });
   };
-  const payload = JSON.stringify({ header: h, children: { items: items.map(({ _text, ...r }) => { void _text; return r; }) } });
+  const payload = JSON.stringify({ header: { ...h, order_date: h.order_date || today }, children: { items: items.map(({ _text, ...r }) => { void _text; return r; }) } });
 
   return (
     <form action={action} noValidate className="max-w-6xl">
@@ -63,8 +63,8 @@ export function PoForm({ id, initial, ros, products, today, number, cancelHref }
         <section>
           <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-muted">Data Production Order</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <div><label className={lab}>Nomor PO</label><input className={ro_inp} readOnly value={locked ? number : previewNo(ro, today)} /></div>
-            <div><label className={lab}>Publish date</label><input className={ro_inp} readOnly value={fmtDate(h.order_date || today)} /></div>
+            <div><label className={lab}>Nomor PO</label><input className={ro_inp} readOnly value={locked ? number : previewNo(ro, h.order_date || today)} /></div>
+            <div><label className={lab} htmlFor="po-date">Publish date</label><input id="po-date" type="date" className={inp} value={h.order_date || today} onChange={(e) => set("order_date", e.target.value)} />{!locked && <p className="mt-1 text-sm text-muted">Bulan dan tahun di nomor PO mengikuti tanggal ini.</p>}{h.needed_date && (h.order_date || today) > h.needed_date && <p role="alert" className="mt-1 text-sm text-danger">Publish date tidak boleh lebih akhir dari tanggal dibutuhkan ({fmtDate(h.needed_date)}).</p>}</div>
             <div className="md:col-span-2">
               <label className={lab} htmlFor="po-ro">Request Order (RO) *</label>
               <select id="po-ro" className={inp} disabled={locked} value={h.ro_id ?? ""} onChange={(e) => pickRo(e.target.value)}>
