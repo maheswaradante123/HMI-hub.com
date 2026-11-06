@@ -71,6 +71,7 @@ export function PlForm({ id, initial, ros, products, warehouses, number, cancelH
                 <option value="">— pilih RO —</option>
                 {ros.map((r) => <option key={r.id} value={r.id}>{r.no} — {r.customer}</option>)}
               </select>
+              {ros.length === 0 && <p role="status" className="mt-2 rounded-md bg-warn-bg px-4 py-3">Belum ada RO yang berstatus <b>Dikonfirmasi</b> atau <b>Selesai</b>, jadi belum ada yang bisa dipilih. Konfirmasi RO-nya dulu di menu Request Order.</p>}
               <p className="mt-1 text-sm text-muted">Wajib. Nomor RO hanya tercatat di sistem, tidak dicetak di file Excel.</p>
             </div>
             <div><label className={lab}>Kepada</label><input className={ro_inp} readOnly placeholder="Mengikuti RO" value={ro?.customer ?? ""} /></div>

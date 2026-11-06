@@ -71,6 +71,7 @@ export function PoForm({ id, initial, ros, products, today, number, cancelHref }
                 <option value="">— pilih RO —</option>
                 {ros.map((r) => <option key={r.id} value={r.id} disabled={Boolean(r.activePo) && r.id !== h.ro_id}>{r.no} — {r.customer}{r.activePo && r.id !== h.ro_id ? ` (sudah ada ${r.activePo})` : ""}</option>)}
               </select>
+              {ros.length === 0 && !locked && <p role="status" className="mt-2 rounded-md bg-warn-bg px-4 py-3">Belum ada RO yang berstatus <b>Dikonfirmasi</b>, jadi belum ada yang bisa dipilih. Buka RO-nya di menu Request Order, lalu klik <b>Konfirmasi RO</b>. Setelah itu RO muncul di sini.</p>}
               <p className="mt-1 text-sm text-muted">RO yang sudah punya PO aktif dikunci. RO yang PO-nya ditolak Owner bisa dipilih lagi (nomor PO pengganti diberi akhiran -R2).</p>
             </div>
           </div>
