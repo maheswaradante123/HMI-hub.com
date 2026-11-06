@@ -65,7 +65,7 @@ export default async function PriceHistoryPage({
   };
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-[1800px]">
       <Link href="/pricing-toko" className="underline">&larr; Semua harga</Link>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div>

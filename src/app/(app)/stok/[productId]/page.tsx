@@ -66,7 +66,7 @@ export default async function StockDetailPage({ params, searchParams }: { params
   const sum = (f: (r: (typeof lotRows)[number]) => number) => lotRows.reduce((s, r) => s + f(r), 0);
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-[1800px]">
       <Link href="/stok" className="underline">&larr; Semua stok</Link>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <div>

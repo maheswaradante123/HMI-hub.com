@@ -76,7 +76,7 @@ export default async function DocDetailPage({
   const a = analysis.data as Record<string, number | string> | null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-[1800px]">
       <Link href={`/d/${slug}`} className="no-print underline">&larr; Semua {cfg.title}</Link>
       <div className="mt-3 flex flex-wrap items-center gap-4">
         <h1 className="text-3xl font-bold">{String(doc.doc_number)}</h1>
@@ -127,7 +127,7 @@ export default async function DocDetailPage({
       {sp.err && <p role="alert" className="no-print mt-4 rounded-md bg-danger-bg px-4 py-3 text-danger">Draf tersimpan, tetapi belum bisa difinalkan: {sp.err.slice(0, 300)}</p>}
       {sp.ok && NOTICES[sp.ok] && !sp.err && <p role="status" className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">{NOTICES[sp.ok]}</p>}
 
-      <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
+      <dl className="mt-6 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2 min-[1500px]:grid-cols-3">
         {cfg.summary.map((c) => (
           <div key={c.path}><dt className="text-muted">{c.label}</dt><dd className="text-lg">{cellText(c, doc)}</dd></div>
         ))}
@@ -279,7 +279,7 @@ export default async function DocDetailPage({
               </table>
             </div>
             <p className="mt-2 text-sm text-muted">Warna baris: kuning = terbayarkan oleh non rekening CPJ, oranye = over budget CPJ sebelumnya, merah = permintaan ditolak, biru muda = uang masuk.</p>
-            <dl className="mt-4 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2">
+            <dl className="mt-4 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2 min-[1500px]:grid-cols-3">
               {JCP_SUMMARY_LABELS.map(([k, label]) => <div key={k}><dt className="text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{fmtRupiah(t[k])}</dd></div>)}
             </dl>
             {status === "ACC" && <p className="no-print mt-4 rounded-md bg-warn-bg px-4 py-3">Dana sudah di-ACC Owner. Klik “Ubah draf” untuk mengisi harga, qty, dan bukti realisasi, lalu pilih “Selesaikan realisasi”.</p>}

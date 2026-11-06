@@ -57,7 +57,7 @@ export function PoForm({ id, initial, ros, products, today, number, cancelHref }
   const payload = JSON.stringify({ header: { ...h, order_date: h.order_date || today }, children: { items: items.map(({ _text, ...r }) => { void _text; return r; }) } });
 
   return (
-    <form action={action} noValidate className="max-w-6xl">
+    <form action={action} noValidate className="max-w-[1500px]">
       <input type="hidden" name="payload" value={payload} />
       <div className="space-y-8 rounded-2xl border border-line bg-white p-6 shadow-sm">
         <section>

@@ -29,7 +29,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
   const logs = (data ?? []) as Log[];
   const names = await loadNames(supabase, logs.map((l) => l.user_id));
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-[1800px]">
       <h1 className="text-3xl font-bold">Audit Log</h1>
       <p className="mt-1 text-muted">Catatan siapa mengubah apa dan kapan. Catatan ini tidak bisa diubah atau dihapus.</p>
       <form className="mt-5 flex flex-wrap items-center gap-3" role="search">

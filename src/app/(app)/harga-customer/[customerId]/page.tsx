@@ -33,7 +33,7 @@ export default async function CustomerPriceDetail({ params, searchParams }: { pa
   const state = (r: P) => r.voided_at ? "Dibatalkan" : r.effective_from > today ? "Akan berlaku" : r.effective_to && r.effective_to < today ? "Sudah berakhir" : "Berlaku";
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-[1800px]">
       <Link href="/harga-customer" className="underline">&larr; Semua customer Horeka</Link>
       <h1 className="mt-3 text-3xl font-bold">Harga {customer.name}</h1>
       {sp.ok && <p role="status" className="mt-4 rounded-md bg-warn-bg px-4 py-3">{sp.ok === "dibatalkan" ? "Harga dibatalkan." : "Harga tersimpan."}</p>}

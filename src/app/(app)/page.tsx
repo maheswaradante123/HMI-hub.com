@@ -77,7 +77,7 @@ export default async function DashboardPage() {
   const blanks = new Date(Date.UTC(yy, mm - 1, 1)).getUTCDay();
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-[1800px]">
       <h1 className="text-3xl font-bold">Hi, {nama}</h1>
       <p className="mt-1 text-muted">{session.roleName} · {tgl}</p>
       {!allowed && <p className="mt-6 rounded-lg border border-line bg-surface p-6">Role Anda belum memiliki akses ke Dashboard. Gunakan menu di sebelah kiri.</p>}

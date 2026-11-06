@@ -56,7 +56,7 @@ export function PlForm({ id, initial, ros, products, warehouses, number, cancelH
   const payload = JSON.stringify({ header: h, children: { items: cleaned.map(({ _text, ...r }) => { void _text; return r; }) } });
 
   return (
-    <form action={action} noValidate className="max-w-5xl">
+    <form action={action} noValidate className="max-w-[1500px]">
       <input type="hidden" name="payload" value={payload} />
       <datalist id="pl-products">{products.map((p) => <option key={p.id} value={p.name}>{p.code}</option>)}</datalist>
       <div className="space-y-8 rounded-2xl border border-line bg-white p-6 shadow-sm">
