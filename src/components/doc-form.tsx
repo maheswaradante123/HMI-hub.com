@@ -9,6 +9,7 @@ import { parseMoney } from "@/lib/pricing/schema";
 import { fmtQty, fmtRupiah } from "@/lib/docs/format";
 import { refKey } from "@/lib/docs/ref-key";
 import { saveDoc, type DocFormState } from "@/app/(app)/d/actions";
+import { DriveUpload } from "@/components/drive-upload";
 
 const inputCls = "w-full rounded-md border-2 border-line bg-white px-3 py-2.5 text-lg";
 type Row = Record<string, string>;
@@ -39,6 +40,14 @@ function Control({ f, value, onChange, refs, id }: {
     );
   }
   if (f.kind === "qty" || f.kind === "money") return <input {...common} type="text" inputMode="decimal" autoComplete="off" />;
+  if (f.upload) {
+    return (
+      <div className="flex items-start gap-2">
+        <input {...common} type="text" autoComplete="off" />
+        <DriveUpload area={f.upload} onDone={(link) => onChange(link)} />
+      </div>
+    );
+  }
   return <input {...common} type="text" autoComplete="off" />;
 }
 

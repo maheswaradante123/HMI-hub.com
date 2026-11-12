@@ -258,7 +258,7 @@ export const CONFIGS: Record<string, DocConfig> = {
     header: [ref("pl_id", "Dari Packing List", "packing_lists", { required: true, refStatus: ["PACKED", "DELIVERED"] }), f("do_date", "Tanggal surat jalan", "date", { required: true, today: true }),
       f("driver_name", "Nama sopir", "text"), f("vehicle_plate", "Plat kendaraan", "text"), f("delivery_address", "Alamat pengiriman", "textarea"), notes,
       f("receiver_name", "Nama penerima (yang tanda tangan)", "text", { help: "Diisi setelah barang diterima." }), f("received_on", "Tanggal diterima", "date"),
-      f("scan_url", "Tautan scan di Google Drive", "text", { help: "Tempel tautan file hasil scan surat jalan yang sudah ditandatangani (drive.google.com)." })],
+      f("scan_url", "Tautan scan di Google Drive", "text", { upload: "DO", help: "Unggah file hasil scan surat jalan yang sudah ditandatangani (disimpan di Google Drive), atau tempel tautan drive.google.com." })],
     summary: [c("Packing List", "packing_lists.doc_number"), c("Customer", "customers.name"), c("Tanggal", "do_date", "date"), c("Sopir", "driver_name"), c("Plat kendaraan", "vehicle_plate"), c("Alamat pengiriman", "delivery_address"),
       c("Penerima", "receiver_name"), c("Tanggal diterima", "received_on", "date"), c("Tautan scan", "scan_url"), c("Catatan", "notes")],
     children: [],

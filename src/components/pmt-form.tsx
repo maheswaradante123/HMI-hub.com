@@ -1,5 +1,6 @@
 "use client";
 
+import { DriveUpload } from "@/components/drive-upload";
 import Link from "next/link";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { pullInvoiceIncome, pullReceivables, saveDoc, type DocFormState } from "@/app/(app)/d/actions";
@@ -107,7 +108,7 @@ export function PmtForm({ id, initial, number, cancelHref }: {
                         {c === "debit_bri" && sm(l.debit ?? "") > 0 && !(l.debit_mandiri ?? "").trim() && !(l.debit_bri ?? "").trim() && <span className="mt-1 block text-right text-xs text-muted">Debit lama {fmtIn(sm(l.debit ?? ""))}, belum dipecah</span>}
                       </td>
                     ))}
-                    <td className="py-1 pr-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /></td>
+                    <td className="py-1 pr-1"><div className="flex items-start gap-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /><DriveUpload area="PMT" compact label="⬆" onDone={(link) => setLine(i, "proof", link)} /></div></td>
                     <td className="py-1 pt-2"><button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="rounded-md px-2 py-1 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button></td>
                   </tr>
                 ))}

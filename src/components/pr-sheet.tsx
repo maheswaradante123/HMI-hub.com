@@ -1,5 +1,6 @@
 "use client";
 
+import { DriveUpload } from "@/components/drive-upload";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useState, useTransition, type ReactNode } from "react";
@@ -143,7 +144,7 @@ export function PrSheet({ sheetId, items, flags }: { sheetId: string; items: She
                           </>)}
                           {canEditProcess(i) && (<>
                             <div className="md:col-span-2"><label className="mb-1 block text-sm font-semibold">Pembelian</label><input className={inp} list="pr-pay" value={draft.pay_method} onChange={(e) => setDraft({ ...draft, pay_method: e.target.value })} /></div>
-                            <div className="md:col-span-3"><label className="mb-1 block text-sm font-semibold">Attachment of Proof (nama file bukti)</label><input className={inp} value={draft.proof} onChange={(e) => setDraft({ ...draft, proof: e.target.value })} /></div>
+                            <div className="md:col-span-3"><label className="mb-1 block text-sm font-semibold">Attachment of Proof (nama file atau tautan bukti)</label><div className="flex items-start gap-2"><input className={inp} value={draft.proof} onChange={(e) => setDraft({ ...draft, proof: e.target.value })} /><DriveUpload area="PR" onDone={(link) => setDraft({ ...draft, proof: link })} /></div></div>
                           </>)}
                         </div>
                         <div className="mt-3 flex gap-3">

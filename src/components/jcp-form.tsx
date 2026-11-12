@@ -1,5 +1,6 @@
 "use client";
 
+import { DriveUpload } from "@/components/drive-upload";
 import Link from "next/link";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { pullPrItems, saveDoc, type DocFormState, type PrItemPull } from "@/app/(app)/d/actions";
@@ -129,7 +130,7 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
                       <td className="py-1 pr-1"><input aria-label={`Real price ${i + 1}`} inputMode="decimal" className={`${inp} text-right`} value={l.real_price ?? ""} onChange={(e) => setLine(i, "real_price", e.target.value)} /></td>
                       <td className="py-1 pr-1"><input aria-label={`Real qty ${i + 1}`} inputMode="decimal" className={`${inp} text-right`} value={l.real_qty ?? ""} onChange={(e) => setLine(i, "real_qty", e.target.value)} /></td>
                       <td className="py-1 pr-2 pt-3 text-right tabular-nums">{ra === null ? "-" : fmtRupiah(ra)}</td>
-                      <td className="py-1 pr-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /></td>
+                      <td className="py-1 pr-1"><div className="flex items-start gap-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /><DriveUpload area="CPJ" compact label="⬆" onDone={(link) => setLine(i, "proof", link)} /></div></td>
                       <td className="py-1 pt-2">{!locked && <button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="rounded-md px-2 py-1 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button>}</td>
                     </tr>
                   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { DriveUpload } from "@/components/drive-upload";
 import Link from "next/link";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { pullCrj, saveDoc, type DocFormState } from "@/app/(app)/d/actions";
@@ -132,7 +133,7 @@ export function CrjForm({ id, initial, number, cancelHref, accounts }: {
                         </select>
                       </td>
                       <td className="py-1 pr-1"><input aria-label={`Jumlah ${i + 1}`} inputMode="decimal" className={`${inp} text-right`} value={l.amount ?? ""} onChange={(e) => setLine(i, "amount", e.target.value)} /></td>
-                      <td className="py-1 pr-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /></td>
+                      <td className="py-1 pr-1"><div className="flex items-start gap-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /><DriveUpload area="CRJ" compact label="⬆" onDone={(link) => setLine(i, "proof", link)} /></div></td>
                       <td className="py-1 pt-2"><button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="rounded-md px-2 py-1 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button></td>
                     </tr>
                   );

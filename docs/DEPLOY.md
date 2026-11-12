@@ -19,6 +19,7 @@
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - Notifikasi email (opsional, lihat bagian 2b): `SMTP_USER`, `SMTP_PASS`, `APP_URL`
+   - Unggah file ke Google Drive (opsional, lihat `docs/GOOGLE-DRIVE.md`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
 3. **Jangan** menaruh `SUPABASE_SERVICE_ROLE_KEY` di Vercel. Kunci itu hanya untuk skrip lokal `scripts/seed-dev-users.mjs`.
 4. Deploy. Buka alamat Vercel, masuk sebagai Owner, lalu cek menu Role & Izin.
 
