@@ -132,6 +132,9 @@ export default async function DocDetailPage({
           <div key={c.path}><dt className="text-muted">{c.label}</dt><dd className="text-lg">{cellText(c, doc)}</dd></div>
         ))}
       </dl>
+      {slug === "ro" && typeof doc.customer_po_url === "string" && doc.customer_po_url && (
+        <p className="no-print mt-4"><a href={doc.customer_po_url} target="_blank" rel="noopener noreferrer" className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Buka lampiran PO customer</a></p>
+      )}
 
       {legacyDo && (
         <section className="mt-6" aria-labelledby="t-legacy">

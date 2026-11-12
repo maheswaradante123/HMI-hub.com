@@ -1,5 +1,6 @@
 -- Pengujian migrasi 0036: bulan dan tahun nomor Production Order mengikuti tanggal publish.
 \set ON_ERROR_STOP on
+select set_config('hmi.po_optional', 'on', false); -- uji ini tidak menguji lampiran PO (lihat 25_ro_po_wajib_tests.sql)
 do $$
 declare v_cust uuid; v_ro uuid; v_po uuid;
 begin

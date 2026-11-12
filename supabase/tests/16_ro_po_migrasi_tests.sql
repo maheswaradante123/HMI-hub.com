@@ -1,5 +1,6 @@
 -- Pengujian migrasi 0027: produk sama boleh di beberapa baris RO/PO, pengemasan baru, satuan baru. Jalankan setelah 01 sampai 15.
 \set ON_ERROR_STOP on
+select set_config('hmi.po_optional', 'on', false); -- uji ini tidak menguji lampiran PO (lihat 25_ro_po_wajib_tests.sql)
 create function pg_temp.u(p text) returns void language plpgsql as $$
 begin reset role; perform set_config('request.jwt.claim.sub', p, true); set local role authenticated; end $$;
 

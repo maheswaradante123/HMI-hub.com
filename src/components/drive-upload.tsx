@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { postJson, uploadOne } from "@/lib/drive/client";
 
-type Area = "CPJ" | "CRJ" | "PMT" | "PR" | "DO" | "LAIN";
+type Area = "CPJ" | "CRJ" | "PMT" | "PR" | "DO" | "RO" | "LAIN";
 
 // Tombol unggah satu file ke Google Drive perusahaan; tautan file diteruskan lewat onDone.
 // Isi file dikirim langsung dari browser ke Google dan tidak disimpan di Supabase.

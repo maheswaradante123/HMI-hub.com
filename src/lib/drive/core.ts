@@ -3,7 +3,7 @@
 // permintaan Vercel (4,5 MB) dan server tidak ikut memikul trafik file. Berkas ini hanya boleh dipakai di sisi server.
 
 export const ROOT_FOLDER = "HMI Hub Uploads";
-export const AREAS = ["CPJ", "CRJ", "PMT", "PR", "DO", "LAIN"] as const;
+export const AREAS = ["CPJ", "CRJ", "PMT", "PR", "DO", "RO", "LAIN"] as const;
 export type Area = (typeof AREAS)[number];
 export { DOC_TYPES, CPJ_REQUIRED, isDocType, typedName } from "./types.ts";
 export type { DocType, FolderFile } from "./types.ts";

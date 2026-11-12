@@ -29,7 +29,7 @@ const U2 = "22222222-2222-4222-8222-222222222222";
 
 test("RO: harga kosong dianggap 0 (otomatis), baris kosong diabaikan", () => {
   const r = parseDoc(ro, {
-    header: { customer_id: U1, order_date: "2026-10-08", delivery_date: "", notes: "" },
+    header: { customer_id: U1, order_date: "2026-10-08", delivery_date: "", notes: "", customer_po_url: "https://drive.google.com/file/d/ABCDEFGHIJK/view" },
     children: { items: [{ product_id: U2, qty: "12,5", unit_price: "" }, { product_id: "", qty: "", unit_price: "" }] },
   });
   assert.ok(r.ok);
@@ -41,11 +41,19 @@ test("RO: harga kosong dianggap 0 (otomatis), baris kosong diabaikan", () => {
 
 test("RO: customer wajib, tanggal harus nyata, produk dobel ditolak", () => {
   assert.equal(parseDoc(ro, { header: { customer_id: "", order_date: "2026-10-08" }, children: { items: [{ product_id: U2, qty: "1" }] } }).ok, false);
-  assert.equal(parseDoc(ro, { header: { customer_id: U1, order_date: "2026-02-31" }, children: { items: [{ product_id: U2, qty: "1" }] } }).ok, false);
-  const dup = parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08" }, children: { items: [{ product_id: U2, qty: "1" }, { product_id: U2, qty: "2" }] } });
+  assert.equal(parseDoc(ro, { header: { customer_id: U1, order_date: "2026-02-31", customer_po_url: "https://drive.google.com/file/d/ABCDEFGHIJK/view" }, children: { items: [{ product_id: U2, qty: "1" }] } }).ok, false);
+  const dup = parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08", customer_po_url: "https://drive.google.com/file/d/ABCDEFGHIJK/view" }, children: { items: [{ product_id: U2, qty: "1" }, { product_id: U2, qty: "2" }] } });
   assert.equal(dup.ok, false);
-  const none = parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08" }, children: { items: [] } });
+  const none = parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08", customer_po_url: "https://drive.google.com/file/d/ABCDEFGHIJK/view" }, children: { items: [] } });
   assert.equal(none.ok, false);
+});
+
+test("RO: lampiran PO customer wajib; nomor PO boleh kosong", () => {
+  const items = { items: [{ product_id: U2, qty: "1" }] };
+  assert.equal(parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08" }, children: items }).ok, false);
+  assert.equal(parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08", customer_po_url: "  " }, children: items }).ok, false);
+  const ok = parseDoc(ro, { header: { customer_id: U1, order_date: "2026-10-08", customer_po_no: "", customer_po_url: "https://drive.google.com/file/d/ABCDEFGHIJK/view" }, children: items });
+  assert.equal(ok.ok, true);
 });
 
 test("Penimbangan: baris harus produk atau non-karkas, tepat salah satu", () => {

@@ -19,7 +19,7 @@ export type Field = {
   today?: boolean;            // isi awal = hari ini (WIB)
   blankAs0?: boolean;         // kosong dianggap 0 (mis. harga otomatis)
   upper?: boolean;
-  upload?: "CPJ" | "CRJ" | "PMT" | "PR" | "DO" | "LAIN"; // tampilkan tombol unggah ke Google Drive di samping isian tautan
+  upload?: "CPJ" | "CRJ" | "PMT" | "PR" | "DO" | "RO" | "LAIN"; // tampilkan tombol unggah ke Google Drive di samping isian tautan
 };
 
 export type ColKind = "text" | "date" | "money" | "qty" | "status" | "pct" | "datetime";
