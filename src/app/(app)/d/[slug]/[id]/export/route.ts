@@ -18,6 +18,8 @@ import { buatRoPdf } from "@/lib/export/ro-pdf.mjs";
 import { buatRoXlsx, buatProdXlsx } from "@/lib/export/ro-prod-xlsx.mjs";
 import { buatProdPdf, leadTime, tglId } from "@/lib/export/prod-pdf.mjs";
 import { docUnit } from "@/lib/docs/format";
+import { buatKwitansiPdf } from "@/lib/export/kwitansi-pdf.mjs";
+import { terbilangRupiah } from "@/lib/terbilang";
 
 export const runtime = "nodejs";
 
@@ -36,10 +38,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string; i
 
 async function handle(req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  if ((slug !== "inv" && slug !== "pmt" && slug !== "jcp" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do" && slug !== "ap") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
+  if ((slug !== "inv" && slug !== "pmt" && slug !== "jcp" && slug !== "ro" && slug !== "prod" && slug !== "pl" && slug !== "do" && slug !== "ap" && slug !== "kw") || !UUID.test(id)) return NextResponse.json({ error: "Dokumen tidak dikenal." }, { status: 404 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Silakan masuk dulu." }, { status: 401 });
-  const mod = slug === "jcp" ? "cpj_journal" : slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : slug === "ap" ? "purchase_analysis" : "invoice";
+  const mod = slug === "jcp" ? "cpj_journal" : slug === "pmt" ? "store_income" : slug === "ro" ? "ro" : slug === "prod" ? "production_order" : slug === "pl" ? "packing_list" : slug === "do" ? "delivery_order" : slug === "ap" ? "purchase_analysis" : slug === "kw" ? "kwitansi" : "invoice";
   if (!session.can(mod, "view") || !session.can(mod, "export")) {
     return NextResponse.json({ error: "Anda tidak memiliki izin mengunduh dokumen ini." }, { status: 403 });
   }
@@ -52,6 +54,21 @@ async function handle(req: Request, { params }: { params: Promise<{ slug: string
     new NextResponse((await wb.xlsx.writeBuffer()) as BodyInit, {
       headers: { "Content-Type": XLSX, "Content-Disposition": `attachment; filename="${name.replace(/[^A-Za-z0-9._-]+/g, "_")}.xlsx"`, "Cache-Control": "private, no-store" },
     });
+  if (slug === "kw") {
+    const { data: kw } = await supabase
+      .from("kwitansi")
+      .select("doc_number, receipt_date, amount, signer, signer_title, notes, status, customers(name), kwitansi_items(line_no, invoices(doc_number))")
+      .eq("id", id).is("deleted_at", null).maybeSingle();
+    if (!kw) return NextResponse.json({ error: "Kwitansi tidak ditemukan." }, { status: 404 });
+    if (!pdf) return NextResponse.json({ error: "Kwitansi hanya tersedia dalam PDF." }, { status: 400 });
+    const nos = [...((kw.kwitansi_items as unknown as { line_no: number; invoices: { doc_number: string } | null }[]) ?? [])].sort((a, b) => a.line_no - b.line_no).map((i) => i.invoices?.doc_number ?? "").filter(Boolean);
+    const data = {
+      nomor: kw.doc_number, tanggal: kw.receipt_date, dari: (kw.customers as unknown as { name: string } | null)?.name ?? "",
+      terbilang: terbilangRupiah(Number(kw.amount)), untuk: nos.join(", "), jumlah: Number(kw.amount),
+      penandatangan: kw.signer ?? "", jabatan: kw.signer_title ?? "", catatan: kw.notes ?? "",
+    };
+    return new NextResponse((await buatKwitansiPdf(data)) as BodyInit, { headers: pdfHeaders(kw.doc_number) });
+  }
   if (slug === "do") {
     const { data: dn } = await supabase
       .from("delivery_orders")

@@ -175,6 +175,23 @@ export const CONFIGS: Record<string, DocConfig> = {
     }],
     statuses: ["DRAFT", "ISSUED", "PARTIAL", "PAID", "VOID"], prefill: ["pl"],
   },
+  kw: {
+    type: "KW", slug: "kw", module: "kwitansi", title: "Kwitansi", singular: "Kwitansi",
+    intro: "Satu kwitansi untuk beberapa invoice (pengiriman) satu customer, dipakai saat tukar faktur. Jumlah dihitung otomatis dari sisa tagihan semua invoice yang dipilih.",
+    table: "kwitansi", select: "*, customers(name)",
+    columns: [c("Nomor", "doc_number"), c("Tanggal", "receipt_date", "date"), c("Customer", "customers.name"), c("Jumlah", "amount", "money"), c("Status", "status", "status")],
+    header: [ref("customer_id", "Customer", "customers", { required: true }), f("receipt_date", "Tanggal kwitansi", "date", { required: true, today: true }),
+      f("signer", "Penandatangan", "text", { initial: "Seno Sumarsongko" }), f("signer_title", "Jabatan penandatangan", "text", { initial: "Accounting" }), notes],
+    summary: [c("Customer", "customers.name"), c("Tanggal", "receipt_date", "date"), c("Jumlah", "amount", "money"), c("Penandatangan", "signer"), c("Jabatan", "signer_title"), c("Catatan", "notes")],
+    children: [{
+      key: "items", title: "Invoice yang dikwitansikan", table: "kwitansi_items", fk: "kwitansi_id", required: true,
+      select: "*, invoices(doc_number, invoice_date, total, paid_amount)",
+      hint: "Pilih invoice milik customer di atas yang masih punya sisa tagihan. Satu invoice hanya boleh ada di satu kwitansi yang masih berlaku.",
+      fields: [ref("invoice_id", "Invoice", "invoices", { required: true, refStatus: ["ISSUED", "PARTIAL"] })],
+      columns: [c("Invoice", "invoices.doc_number"), c("Tanggal", "invoices.invoice_date", "date"), c("Total", "invoices.total", "money"), c("Sudah dibayar", "invoices.paid_amount", "money")],
+    }],
+    statuses: ["DRAFT", "ISSUED", "VOID"], prefill: [],
+  },
   crj: {
     type: "CRJ", slug: "crj", module: "crj", title: "CRJ lama (per penerimaan)", singular: "CRJ lama",
     intro: "Bentuk lama: satu penerimaan untuk satu pelanggan. Untuk rekap per periode dari Qurban, QRIS, setoran cash, dan tempo Horeka, pakai CRJ (Penerimaan) yang baru. Posting mengurangi piutang invoice yang dialokasikan.",

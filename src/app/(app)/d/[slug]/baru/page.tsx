@@ -44,7 +44,7 @@ export default async function NewDocPage({
   const fields = [...cfg.header, ...cfg.children.flatMap((c) => c.fields)];
   const refs = await loadDocRefs(supabase, fields, keep);
 
-  const header = Object.fromEntries(cfg.header.map((f) => [f.name, pre.header[f.name] ?? (f.today ? todayJakarta() : "")]));
+  const header = Object.fromEntries(cfg.header.map((f) => [f.name, pre.header[f.name] ?? (f.today ? todayJakarta() : f.initial ?? "")]));
   const children = Object.fromEntries(cfg.children.map((c) => [c.key, pre.children[c.key] ?? (c.required ? [Object.fromEntries(c.fields.map((f) => [f.name, ""]))] : [])]));
 
   if (slug === "ro") {

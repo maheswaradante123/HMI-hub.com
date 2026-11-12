@@ -17,6 +17,7 @@ export type Field = {
   options?: { value: string; label: string }[];
   help?: string;
   today?: boolean;            // isi awal = hari ini (WIB)
+  initial?: string;           // isi awal tetap (mis. nama penandatangan)
   blankAs0?: boolean;         // kosong dianggap 0 (mis. harga otomatis)
   upper?: boolean;
   upload?: "CPJ" | "CRJ" | "PMT" | "PR" | "DO" | "RO" | "LAIN"; // tampilkan tombol unggah ke Google Drive di samping isian tautan

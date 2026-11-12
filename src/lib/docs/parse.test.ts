@@ -82,3 +82,10 @@ test("docUnit: satuan Gram di dokumen tampil Kg, lainnya tetap", async () => {
   assert.equal(docUnit("Kilogram"), "Kilogram");
   assert.equal(docUnit(null), "");
 });
+
+test("Kwitansi: customer dan minimal satu invoice wajib", () => {
+  const kw = CONFIGS.kw;
+  assert.equal(parseDoc(kw, { header: { customer_id: U1, receipt_date: "2026-11-12" }, children: { items: [] } }).ok, false);
+  assert.equal(parseDoc(kw, { header: { customer_id: "", receipt_date: "2026-11-12" }, children: { items: [{ invoice_id: U2 }] } }).ok, false);
+  assert.equal(parseDoc(kw, { header: { customer_id: U1, receipt_date: "2026-11-12" }, children: { items: [{ invoice_id: U2 }] } }).ok, true);
+});

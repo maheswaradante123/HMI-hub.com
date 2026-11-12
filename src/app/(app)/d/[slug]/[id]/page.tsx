@@ -110,6 +110,12 @@ export default async function DocDetailPage({
           <a href={`/d/jcp/${id}/export`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">Excel</a>
         </p>
       )}
+      {slug === "kw" && session.can("kwitansi", "export") && (
+        <p className="no-print mt-4 flex flex-wrap items-center gap-3">
+          <PdfPreview href={`/d/kw/${id}/export`} title={`Kwitansi ${String(doc.doc_number)}`} />
+          <a href={`/d/kw/${id}/export?format=pdf`} className="rounded-full border border-line bg-surface px-4 py-1.5 font-semibold hover:bg-background">PDF</a>
+        </p>
+      )}
       {slug === "ap" && session.can("purchase_analysis", "export") && (
         <p className="no-print mt-4 flex flex-wrap items-center gap-3">
           <PdfPreview href={`/d/ap/${id}/export`} title={`Analisa Pembelian ${String(doc.doc_number)}`} xlsx={`/d/ap/${id}/export`} />
