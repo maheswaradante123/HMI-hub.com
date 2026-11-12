@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   accessToken, resetTokenCache, driveConfigured, validateUpload, folderPath, safeFileName, qEscape,
-  ensureFolder, ensurePath, startUpload, finishUpload, DriveError, MAX_BYTES,
+  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, DriveError, MAX_BYTES,
 } from "./core.ts";
 
 const ENV = { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "sec", GOOGLE_REFRESH_TOKEN: "rt" };
@@ -115,4 +115,23 @@ test("finishUpload: tolak file yang bukan hasil HMI Hub, buka akses link untuk y
   assert.deepEqual(JSON.parse(String(ok.calls[1].init!.body)), { role: "reader", type: "anyone" });
 
   await assert.rejects(finishUpload("t", "../x", ok.f), (e: unknown) => e instanceof DriveError && e.status === 400);
+});
+
+test("cpjFolderPath: CPJ / tahun / Bulan tahun / nomor / item", () => {
+  assert.deepEqual(cpjFolderPath({ number: "CPJ-005-X-26", date: "2026-10-15", item: "Rumput Firdaus" }),
+    ["HMI Hub Uploads", "CPJ", "2026", "Oktober 2026", "CPJ-005-X-26", "Rumput Firdaus"]);
+  assert.deepEqual(cpjFolderPath({ number: "CPJ-001-I-27", date: "2027-01-02", item: "a/b" })!.slice(3), ["Januari 2027", "CPJ-001-I-27", "a_b"]);
+  assert.equal(cpjFolderPath({ number: "", date: "2026-10-15", item: "x" }), null);
+  assert.equal(cpjFolderPath({ number: "../x", date: "2026-10-15", item: "x" }), null);
+  assert.equal(cpjFolderPath({ number: "CPJ-1", date: "2026-13-01", item: "x" }), null);
+  assert.equal(cpjFolderPath({ number: "CPJ-1", date: "", item: "x" }), null);
+  assert.equal(cpjFolderPath({ number: "CPJ-1", date: "2026-10-01", item: "  " }), null);
+});
+
+test("shareFolder membuka folder untuk siapa pun yang punya tautan", async () => {
+  const m = mock(() => json({ id: "p" }));
+  await shareFolder("t", "FOLD", m.f);
+  assert.match(m.calls[0].url, /files\/FOLD\/permissions$/);
+  assert.deepEqual(JSON.parse(String(m.calls[0].init!.body)), { role: "reader", type: "anyone" });
+  assert.equal(folderLink("FOLD"), "https://drive.google.com/drive/folders/FOLD");
 });

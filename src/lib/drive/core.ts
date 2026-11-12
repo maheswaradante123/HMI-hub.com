@@ -48,6 +48,28 @@ export function folderPath(area: Area, now: Date = new Date()): string[] {
   return [ROOT_FOLDER, area, `${wib.getUTCFullYear()}-${String(wib.getUTCMonth() + 1).padStart(2, "0")}`];
 }
 
+const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+// Susunan folder bukti realisasi CPJ: CPJ / <tahun> / <Bulan tahun> / <nomor CPJ> / <nama item>. Bulan mengikuti tanggal jurnal.
+export function cpjFolderPath(i: { number?: unknown; date?: unknown; item?: unknown }): string[] | null {
+  const number = typeof i.number === "string" ? i.number.trim() : "";
+  const m = typeof i.date === "string" ? /^(\d{4})-(\d{2})-\d{2}$/.exec(i.date) : null;
+  const item = typeof i.item === "string" && i.item.trim() ? safeFileName(i.item).slice(0, 100) : "";
+  if (!/^[A-Za-z0-9._-]{1,40}$/.test(number) || !m || !item) return null;
+  const mon = Number(m[2]);
+  if (mon < 1 || mon > 12) return null;
+  return [ROOT_FOLDER, "CPJ", m[1], `${BULAN[mon - 1]} ${m[1]}`, number, item];
+}
+
+export const folderLink = (id: string) => `https://drive.google.com/drive/folders/${id}`;
+
+// Folder dibuka untuk "siapa pun yang punya tautan" (hanya melihat); file di dalamnya mengikuti.
+export async function shareFolder(token: string, folderId: string, f: Fetch = fetch): Promise<void> {
+  await api(token, f, `https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
+}
+
 export const qEscape = (s: string) => s.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
 export class DriveError extends Error {
