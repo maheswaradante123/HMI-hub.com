@@ -1,4 +1,5 @@
 import "server-only";
+import { sortDocNoDesc } from "./doc-no";
 import type { createClient } from "@/lib/supabase/server";
 import type { RoCustomer, RoProduct } from "@/components/ro-form";
 import { fetchAll } from "@/lib/supabase/fetch-all";
@@ -32,7 +33,7 @@ export async function loadPoRos(supabase: Awaited<ReturnType<typeof createClient
       .is("deleted_at", null).order("doc_number", { ascending: false }).order("id").range(from, to);
     return keepId ? q.or(`status.eq.CONFIRMED,id.eq.${keepId}`) : q.eq("status", "CONFIRMED");
   });
-  return data.map((r) => {
+  return sortDocNoDesc(data, (r) => String(r.doc_number ?? "")).map((r) => {
     const pos = ((r.production_orders as unknown as { doc_number: string; status: string; deleted_at: string | null }[]) ?? []).filter((p) => !p.deleted_at);
     const act = pos.find((p) => !["REJECTED", "CANCELLED"].includes(p.status));
     const cu = r.customers as unknown as { name: string } | null;
@@ -55,7 +56,7 @@ export async function loadPlRos(supabase: Awaited<ReturnType<typeof createClient
       .is("deleted_at", null).order("doc_number", { ascending: false }).order("id").range(from, to);
     return keepId ? q.or(`status.in.(CONFIRMED,COMPLETED),id.eq.${keepId}`) : q.in("status", ["CONFIRMED", "COMPLETED"]);
   });
-  return data.map((r) => ({
+  return sortDocNoDesc(data, (r) => String(r.doc_number ?? "")).map((r) => ({
     id: r.id, no: r.doc_number, customerId: r.customer_id, phone: r.phone ?? "",
     customer: (r.customers as unknown as { name: string } | null)?.name ?? "",
   }));
@@ -76,7 +77,7 @@ export async function loadInvPls(supabase: Awaited<ReturnType<typeof createClien
     fetchAll((from, to) => supabase.from("invoices").select("pl_id").not("pl_id", "is", null).neq("status", "VOID").is("deleted_at", null).order("id").range(from, to)),
   ]);
   const taken = new Set((used ?? []).map((u) => u.pl_id as string));
-  return (pls ?? []).filter((p) => !taken.has(p.id) || p.id === keepId).map((p) => {
+  return sortDocNoDesc((pls ?? []).filter((p) => !taken.has(p.id) || p.id === keepId), (p) => String(p.doc_number ?? "")).map((p) => {
     const cu = p.customers as unknown as { name: string; code: string } | null;
     return {
       id: p.id, no: p.doc_number, customerId: p.customer_id, customer: cu?.name ?? "", code: cu?.code ?? "", phone: p.phone ?? "",

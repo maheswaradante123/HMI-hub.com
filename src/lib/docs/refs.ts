@@ -4,6 +4,7 @@ import type { createClient } from "@/lib/supabase/server";
 import type { Field, RefName } from "./types";
 import type { RefOption } from "@/lib/master/refs";
 import { fmtRupiah, getPath } from "./format";
+import { sortDocNoDesc } from "./doc-no";
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 type Row = Record<string, unknown>;
@@ -56,6 +57,7 @@ export async function loadDocRefs(supabase: Supa, fields: Field[], keep: string[
       const taken = new Set(used.filter((u) => u.kwitansi && u.kwitansi.status !== "VOID" && !u.kwitansi.deleted_at).map((u) => u.invoice_id));
       rows = rows.filter((r) => !taken.has(String(r.id)) || keep.includes(String(r.id)));
     }
+    if (spec.docs) rows = sortDocNoDesc(rows, (r) => String(r.doc_number ?? "")); // tahun, bulan, lalu nomor; terbaru di atas
     const have = new Set(rows.map((r) => String(r.id)));
     const missing = keep.filter((id) => id && !have.has(id));
     let extra: Row[] = [];
