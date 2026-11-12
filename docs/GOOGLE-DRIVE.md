@@ -44,6 +44,8 @@ jadi batas ukuran permintaan Vercel (4,5 MB) tidak berlaku.
 
 ## Bila gagal
 
+Buka `https://<domain-aplikasi>/api/drive/status` di browser (setelah login). Halaman itu menyebut variabel mana yang tidak terbaca atau bentuknya janggal, dan apakah Google menerima login-nya (`"siap": true` bila semua beres). Nilai rahasia tidak ditampilkan.
+
 | Pesan | Penyebab / tindakan |
 | --- | --- |
 | "Unggah ke Google Drive belum diatur di server" | Salah satu dari tiga variabel di atas belum diisi, atau belum Redeploy. |

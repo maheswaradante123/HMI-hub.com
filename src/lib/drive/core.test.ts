@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   accessToken, resetTokenCache, driveConfigured, validateUpload, folderPath, safeFileName, qEscape,
-  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, isDocType, typedName, listFolder, cpjOverview, DriveError, MAX_BYTES,
+  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, isDocType, typedName, listFolder, cpjOverview, driveDiagnose, DriveError, MAX_BYTES,
 } from "./core.ts";
 
 const ENV = { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "sec", GOOGLE_REFRESH_TOKEN: "rt" };
@@ -171,4 +171,27 @@ test("cpjOverview: kelompokkan berkas per folder item, tanpa membuat folder", as
   const none = mock(() => json({ files: [] }));
   assert.deepEqual(await cpjOverview("t", { number: "CPJ-005-X-26", date: "2026-10-12" }, none.f), {});
   await assert.rejects(cpjOverview("t", { number: "", date: "x" }, none.f), DriveError);
+});
+
+test("driveDiagnose: menunjuk variabel yang hilang atau janggal tanpa membocorkan nilainya", async () => {
+  resetTokenCache();
+  const none = await driveDiagnose({}, mock(() => json({})).f);
+  assert.equal(none.siap, false);
+  assert.equal(none.petunjuk.length, 3);
+
+  const odd = await driveDiagnose({ GOOGLE_CLIENT_ID: "1-a.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET: "GOCSPX-abc", GOOGLE_REFRESH_TOKEN: '"1//abc"' }, mock(() => json({})).f);
+  assert.equal(odd.variabel.GOOGLE_REFRESH_TOKEN.bentukBenar, false);
+  assert.match(odd.petunjuk[0], /GOOGLE_REFRESH_TOKEN terbaca/);
+  assert.ok(!JSON.stringify(odd).includes("abc"));
+
+  resetTokenCache();
+  const good = { GOOGLE_CLIENT_ID: "1-a.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET: "GOCSPX-abc", GOOGLE_REFRESH_TOKEN: "1//abc" };
+  const ok = await driveDiagnose(good, mock((c) => (c.url.includes("oauth2") ? json({ access_token: "T", expires_in: 3600 }) : json({ files: [] }))).f);
+  assert.equal(ok.siap, true);
+
+  resetTokenCache();
+  const bad = await driveDiagnose(good, mock(() => json({ error: "invalid_client" }, { status: 401 })).f);
+  assert.equal(bad.siap, false);
+  assert.match(bad.petunjuk.join(" "), /Tidak dapat masuk/);
+  resetTokenCache();
 });

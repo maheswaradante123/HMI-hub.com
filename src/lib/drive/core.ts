@@ -194,3 +194,28 @@ export async function cpjOverview(token: string, i: { number: unknown; date: unk
   for (const file of await filesIn(token, ids, f)) (grouped[file.parent] ??= []).push(file);
   return grouped;
 }
+
+// Uji koneksi untuk pemecahan masalah: melaporkan bentuk variabel (bukan nilainya) dan hasil tukar token ke Google.
+export async function driveDiagnose(env: Env = process.env, f: Fetch = fetch) {
+  const v = (k: string) => env[k] ?? "";
+  const shape = {
+    GOOGLE_CLIENT_ID: { ada: Boolean(v("GOOGLE_CLIENT_ID")), bentukBenar: /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(v("GOOGLE_CLIENT_ID")) },
+    GOOGLE_CLIENT_SECRET: { ada: Boolean(v("GOOGLE_CLIENT_SECRET")), bentukBenar: /^GOCSPX-[A-Za-z0-9_-]+$/.test(v("GOOGLE_CLIENT_SECRET")) },
+    GOOGLE_REFRESH_TOKEN: { ada: Boolean(v("GOOGLE_REFRESH_TOKEN")), bentukBenar: /^1\/\/[A-Za-z0-9_-]+$/.test(v("GOOGLE_REFRESH_TOKEN")) },
+  };
+  const hint: string[] = [];
+  for (const [k, s] of Object.entries(shape)) {
+    if (!s.ada) hint.push(`${k} belum terbaca di server (belum diisi, salah nama, atau belum Redeploy).`);
+    else if (!s.bentukBenar) hint.push(`${k} terbaca tetapi bentuknya tidak biasa (ada spasi, tanda kutip, atau terpotong?).`);
+  }
+  if (!driveConfigured(env)) return { siap: false, variabel: shape, petunjuk: hint };
+  resetTokenCache();
+  try {
+    const token = await accessToken(env, f);
+    const r = await f("https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)", { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) hint.push(`Token diterima tetapi Drive API menolak (status ${r.status}). Pastikan Google Drive API sudah Enable di proyek yang sama.`);
+    return { siap: r.ok, variabel: shape, petunjuk: hint };
+  } catch (e) {
+    return { siap: false, variabel: shape, petunjuk: [...hint, e instanceof Error ? e.message : "Gagal masuk ke Google."] };
+  }
+}
