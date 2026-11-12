@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import { Forbidden } from "@/components/forbidden";
 import { LINE_LABEL, LINE_STATUSES, LINE_STYLE, isDead, weekLabel, type LineStatus } from "@/lib/pr/lines";
 
@@ -16,12 +17,12 @@ export default async function PrListPage({ searchParams }: { searchParams: Promi
   const seeAll = session.can("purchase_request_all", "view");
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await fetchAll<Record<string, unknown>>((from, to) => supabase
     .from("purchase_requests")
     .select("id, doc_number, request_date, status, pr_items(id, pr_id, line_no, ac, code, item_name, estimated_price, qty, status, pay_method)")
     .is("deleted_at", null)
-    .order("request_date", { ascending: false }).order("doc_number", { ascending: false })
-    .limit(60);
+    .order("request_date", { ascending: false }).order("doc_number", { ascending: false }).order("id", { ascending: false })
+    .range(from, to) as unknown as PromiseLike<{ data: Record<string, unknown>[] | null; error: unknown }>);
   const sheets = ((data ?? []) as unknown as Sheet[]).filter((s) => s.pr_items.length > 0);
   const all = sheets.flatMap((s) => s.pr_items.map((i) => ({ ...i, sheet: s })));
   const tab = sp.tab === "item" || (sp.status && !sp.tab) ? "item" : "sheet";
@@ -118,7 +119,7 @@ export default async function PrListPage({ searchParams }: { searchParams: Promi
           )}
         </div>
       )}
-      <p className="mt-4 text-sm text-muted">Menampilkan sampai 60 lembar terbaru.</p>
+      
     </div>
   );
 }

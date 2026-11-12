@@ -7,9 +7,7 @@ import { DocStatusBadge } from "@/components/doc-status-badge";
 import { CONFIGS } from "@/lib/docs/config";
 import { cellText, getPath, isNumericKind } from "@/lib/docs/format";
 import { DOC_STATUS_LABEL } from "@/lib/docs/status";
-
-// Batas baris per halaman daftar (batas bawaan Supabase 1000 baris per permintaan).
-const LIMIT = 1000;
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export default async function DocListPage({
   params, searchParams,
@@ -31,19 +29,19 @@ export default async function DocListPage({
   const term = (sp.q ?? "").replace(/[,()%*\\]/g, " ").trim();
   // Urut menurut tanggal dokumen (kolom tanggal pertama), terbaru di atas; bila kolom itu tidak ada di tabel, kembali ke waktu dibuat.
   const dateCol = cfg.columns.find((c) => c.kind === "date" && !c.path.includes("."))?.path;
-  const load = (byDate: boolean) => {
-    let q = supabase.from(cfg.table).select(cfg.listSelect ?? cfg.select, { count: "exact" }).is("deleted_at", null);
+  const load = (byDate: boolean) => fetchAll<Record<string, unknown>>((from, to) => {
+    let q = supabase.from(cfg.table).select(cfg.listSelect ?? cfg.select).is("deleted_at", null);
     q = byDate && dateCol ? q.order(dateCol, { ascending: false }).order("created_at", { ascending: false }) : q.order("created_at", { ascending: false });
-    q = q.limit(LIMIT);
+    q = q.order("id", { ascending: false }).range(from, to);
     if (cfg.filter) q = cfg.filter.op === "eq" ? q.eq(cfg.filter.column, cfg.filter.value) : q.neq(cfg.filter.column, cfg.filter.value);
     if (status) q = q.eq("status", status);
     if (term) q = q.ilike("doc_number", `%${term}%`);
-    return q;
-  };
+    return q as unknown as PromiseLike<{ data: Record<string, unknown>[] | null; error: unknown }>;
+  });
   let res = await load(true);
   if (res.error && dateCol) res = await load(false);
-  const { data, error, count } = res;
-  const rows = ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => (cfg.derive ? { ...r, ...cfg.derive(r) } : r));
+  const { data, error } = res;
+  const rows = data.map((r) => (cfg.derive ? { ...r, ...cfg.derive(r) } : r));
 
   return (
     <div>
@@ -94,7 +92,6 @@ export default async function DocListPage({
           </table>
         </div>
       )}
-      {count !== null && count > rows.length && <p className="mt-3 text-muted">Menampilkan {rows.length} dari {count} dokumen (terbaru). Persempit dengan pencarian atau filter status.</p>}
     </div>
   );
 }

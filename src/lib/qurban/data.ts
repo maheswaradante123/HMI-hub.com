@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export type Order = {
   id: string; cow_no: string; customer_nick: string; start_date: string; initial_weight: number;
@@ -35,8 +36,8 @@ const ORDER_NUM = ["initial_weight", "class_min", "class_max", "buy_price", "car
 
 export async function listOrders(): Promise<Order[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("v_qurban_orders").select("*").order("created_at", { ascending: false }).limit(1000);
-  return (data ?? []).map((r) => num(r as Order, ORDER_NUM));
+  const { data } = await fetchAll((from, to) => supabase.from("v_qurban_orders").select("*").order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to));
+  return data.map((r) => num(r as Order, ORDER_NUM));
 }
 
 // Pesanan yang tergabung dalam satu proforma/invoice (tanpa yang dibatalkan), urut pembuatan.
@@ -62,24 +63,28 @@ export async function getLines(id: string): Promise<Line[]> {
 
 export async function listWeighings(orderIds?: string[]): Promise<Weighing[]> {
   const supabase = await createClient();
-  let q = supabase.from("qurban_weighings").select("id, order_id, weigh_date, weight, note").order("weigh_date").order("created_at").limit(5000);
-  if (orderIds) q = q.in("order_id", orderIds);
-  const { data } = await q;
-  return (data ?? []).map((r) => num(r as Weighing, ["weight"]));
+  const { data } = await fetchAll((from, to) => {
+    let q = supabase.from("qurban_weighings").select("id, order_id, weigh_date, weight, note").order("weigh_date").order("created_at").order("id").range(from, to);
+    if (orderIds) q = q.in("order_id", orderIds);
+    return q;
+  });
+  return data.map((r) => num(r as Weighing, ["weight"]));
 }
 
 export async function listBills(orderId?: string): Promise<Bill[]> {
   const supabase = await createClient();
-  let q = supabase.from("qurban_bills").select("*").order("ym").limit(2000);
-  if (orderId) q = q.eq("order_id", orderId);
-  const { data } = await q;
-  return (data ?? []).map((r) => num(r as Bill, ["days", "rate", "basis_weight"]));
+  const { data } = await fetchAll((from, to) => {
+    let q = supabase.from("qurban_bills").select("*").order("ym").order("id").range(from, to);
+    if (orderId) q = q.eq("order_id", orderId);
+    return q;
+  });
+  return data.map((r) => num(r as Bill, ["days", "rate", "basis_weight"]));
 }
 
 export async function listQc(): Promise<Qc[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("qurban_qc_reports").select("*").order("ym", { ascending: false }).order("customer_nick").limit(1000);
-  return (data ?? []) as Qc[];
+  const { data } = await fetchAll((from, to) => supabase.from("qurban_qc_reports").select("*").order("ym", { ascending: false }).order("customer_nick").order("id").range(from, to));
+  return data as Qc[];
 }
 
 export async function getBuyer(orderId: string): Promise<Buyer | null> {
@@ -90,8 +95,8 @@ export async function getBuyer(orderId: string): Promise<Buyer | null> {
 
 export async function listBuyers(): Promise<Buyer[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("qurban_buyer_details").select("*").limit(2000);
-  return (data ?? []) as Buyer[];
+  const { data } = await fetchAll((from, to) => supabase.from("qurban_buyer_details").select("*").order("order_id").range(from, to));
+  return data as Buyer[];
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
