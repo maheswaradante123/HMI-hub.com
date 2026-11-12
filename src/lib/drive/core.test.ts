@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   accessToken, resetTokenCache, driveConfigured, validateUpload, folderPath, safeFileName, qEscape,
-  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, DriveError, MAX_BYTES,
+  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, isDocType, typedName, listFolder, DriveError, MAX_BYTES,
 } from "./core.ts";
 
 const ENV = { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "sec", GOOGLE_REFRESH_TOKEN: "rt" };
@@ -134,4 +134,21 @@ test("shareFolder membuka folder untuk siapa pun yang punya tautan", async () =>
   assert.match(m.calls[0].url, /files\/FOLD\/permissions$/);
   assert.deepEqual(JSON.parse(String(m.calls[0].init!.body)), { role: "reader", type: "anyone" });
   assert.equal(folderLink("FOLD"), "https://drive.google.com/drive/folders/FOLD");
+});
+
+test("jenis berkas menjadi awalan nama dan dicatat di appProperties", async () => {
+  assert.equal(isDocType("Invoice"), true);
+  assert.equal(isDocType("Foto"), false);
+  assert.equal(typedName("Surat Jalan", "scan.pdf"), "Surat Jalan - scan.pdf");
+  const m = mock(() => new Response(null, { status: 200, headers: { location: "https://u/1" } }));
+  await startUpload("t", { name: "Invoice - a.pdf", mime: "application/pdf", size: 1, folderId: "F", origin: "o", by: "b", docType: "Invoice" }, m.f);
+  assert.equal(JSON.parse(String(m.calls[0].init!.body)).appProperties.docType, "Invoice");
+});
+
+test("listFolder memetakan berkas dan menolak ID aneh", async () => {
+  const m = mock(() => json({ files: [{ id: "A1", name: "PO - x.pdf", webViewLink: "https://d/A1", appProperties: { docType: "PO" } }, { id: "B2", name: "y.pdf" }] }));
+  const r = await listFolder("t", "FOLDERID123", m.f);
+  assert.deepEqual(r.map((x) => [x.id, x.docType]), [["A1", "PO"], ["B2", ""]]);
+  assert.match(dq(m.calls[0].url), /'FOLDERID123' in parents/);
+  await assert.rejects(listFolder("t", "x' or '1'='1", m.f), DriveError);
 });

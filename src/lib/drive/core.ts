@@ -5,6 +5,12 @@
 export const ROOT_FOLDER = "HMI Hub Uploads";
 export const AREAS = ["CPJ", "CRJ", "PMT", "PR", "DO", "LAIN"] as const;
 export type Area = (typeof AREAS)[number];
+// Jenis berkas bukti realisasi CPJ; menjadi awalan nama file di Drive ("Invoice - scan.pdf").
+export const DOC_TYPES = ["PO", "Surat Jalan", "Invoice", "Bukti Penerimaan", "Bukti Transfer", "Lainnya"] as const;
+export type DocType = (typeof DOC_TYPES)[number];
+export const isDocType = (v: unknown): v is DocType => typeof v === "string" && (DOC_TYPES as readonly string[]).includes(v);
+export const typedName = (t: DocType, name: string) => `${t} - ${name}`.slice(0, 200);
+
 export const MAX_BYTES = 200 * 1024 * 1024;
 export const ALLOWED_MIME = new Set([
   "application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif",
@@ -124,14 +130,14 @@ export async function ensurePath(token: string, path: string[], f: Fetch = fetch
 }
 
 // Membuka sesi unggah resumable. Header Origin membuat Google mengizinkan PUT langsung dari browser (CORS).
-export async function startUpload(token: string, o: { name: string; mime: string; size: number; folderId: string; origin: string; by: string }, f: Fetch = fetch): Promise<string> {
+export async function startUpload(token: string, o: { name: string; mime: string; size: number; folderId: string; origin: string; by: string; docType?: DocType }, f: Fetch = fetch): Promise<string> {
   const r = await f("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8",
       "X-Upload-Content-Type": o.mime, "X-Upload-Content-Length": String(o.size), Origin: o.origin,
     },
-    body: JSON.stringify({ name: o.name, parents: [o.folderId], appProperties: { hmiHub: "1", by: o.by.slice(0, 100) } }),
+    body: JSON.stringify({ name: o.name, parents: [o.folderId], appProperties: { hmiHub: "1", by: o.by.slice(0, 100), ...(o.docType ? { docType: o.docType } : {}) } }),
   });
   const url = r.headers.get("location");
   if (!r.ok || !url) throw new DriveError("Google Drive menolak membuat sesi unggah.", 502);
@@ -148,4 +154,18 @@ export async function finishUpload(token: string, fileId: string, f: Fetch = fet
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: "reader", type: "anyone" }),
   });
   return { id: meta.id, name: meta.name, link: meta.webViewLink ?? `https://drive.google.com/file/d/${meta.id}/view` };
+}
+
+export type FolderFile = { id: string; name: string; link: string; docType: string; createdTime: string };
+
+// Daftar berkas di satu folder (hanya yang dibuat lewat HMI Hub; izin drive.file tidak melihat yang lain).
+export async function listFolder(token: string, folderId: string, f: Fetch = fetch): Promise<FolderFile[]> {
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(folderId)) throw new DriveError("ID folder tidak valid.", 400);
+  const q = `'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
+  const r = await api<{ files?: { id: string; name: string; webViewLink?: string; createdTime?: string; appProperties?: Record<string, string> }[] }>(
+    token, f, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: "files(id,name,webViewLink,createdTime,appProperties)", orderBy: "createdTime", pageSize: "100" })}`);
+  return (r.files ?? []).map((x) => ({
+    id: x.id, name: x.name, link: x.webViewLink ?? `https://drive.google.com/file/d/${x.id}/view`,
+    docType: x.appProperties?.docType ?? "", createdTime: x.createdTime ?? "",
+  }));
 }
