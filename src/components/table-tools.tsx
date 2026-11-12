@@ -2,26 +2,14 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { cellValue } from "@/lib/table-sort";
 
 // Menambahkan urut (klik kepala kolom) dan saring (kotak di bawah kepala) pada setiap tabel daftar.
 // Tabel yang berisi isian formulir, atau bertanda data-no-tools, dibiarkan apa adanya.
-const MONTHS = ["januari", "februari", "maret", "april", "mei", "juni", "juli", "agustus", "september", "oktober", "november", "desember"];
-
 type St = { f: string[]; col: number | null; dir: "asc" | "desc" | null };
 
-function value(td: HTMLTableCellElement): { n?: number; s?: string } {
-  const t = (td.textContent || "").trim();
-  const d = t.match(/^(\d{1,2}) ([A-Za-z]+) (\d{4})$/);
-  if (d) {
-    const i = MONTHS.indexOf(d[2].toLowerCase());
-    if (i >= 0) return { n: Date.UTC(+d[3], i, +d[1]) };
-  }
-  const x = t.replace(/^Rp\s*/i, "").replace(/\s*(Kg|hari|Hari)$/, "").trim();
-  if (/^-?[\d.,]+$/.test(x) && /\d/.test(x)) {
-    const n = parseFloat(x.replace(/\./g, "").replace(",", "."));
-    if (!isNaN(n)) return { n };
-  }
-  return { s: t.toLowerCase() };
+function value(td: HTMLTableCellElement) {
+  return cellValue(td.textContent || "");
 }
 
 function apply(tb: HTMLTableElement, st: St) {
