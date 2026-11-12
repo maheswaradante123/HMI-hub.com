@@ -15,8 +15,8 @@ const inputCls = "w-full rounded-md border-2 border-line bg-white px-3 py-2.5 te
 type Row = Record<string, string>;
 export type FormValues = { header: Row; children: Record<string, Row[]> };
 
-function Control({ f, value, onChange, refs, id }: {
-  f: Field; value: string; onChange: (v: string) => void; refs: Record<string, RefOption[]>; id: string;
+function Control({ f, value, onChange, refs, id, groupValue }: {
+  f: Field; value: string; onChange: (v: string) => void; refs: Record<string, RefOption[]>; id: string; groupValue?: string;
 }) {
   const common = { id, value, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => onChange(e.target.value), className: inputCls };
   if (f.kind === "textarea") return <textarea {...common} rows={2} />;
@@ -29,10 +29,11 @@ function Control({ f, value, onChange, refs, id }: {
       </select>
     );
   if (f.kind === "ref") {
-    const opts = refs[refKey(f)] ?? [];
+    const all = refs[refKey(f)] ?? [];
+    const opts = f.refGroup ? all.filter((o) => (groupValue && o.group === groupValue) || o.value === value) : all;
     return (
       <select {...common}>
-        <option value="">{f.required ? "Pilih..." : "Tidak dipilih"}</option>
+        <option value="">{f.refGroup && !groupValue ? "Pilih customer dulu" : f.required ? "Pilih..." : "Tidak dipilih"}</option>
         {opts.filter((o) => o.active || o.value === value).map((o) => (
           <option key={o.value} value={o.value}>{o.label}{o.active ? "" : " (nonaktif)"}</option>
         ))}
@@ -63,6 +64,22 @@ export function DocForm({ slug, id, header, lines, refs, initial, cancelHref }: 
   const [h, setH] = useState<Row>(restored?.header ?? initial.header);
   const [rows, setRows] = useState<Record<string, Row[]>>(restored?.children ?? initial.children);
 
+  // Mengganti isian header yang menjadi acuan pilihan baris (mis. customer) mengosongkan baris yang bergantung padanya.
+  const changeHeader = (name: string, v: string) => {
+    setH((x) => ({ ...x, [name]: v }));
+    for (const c of lines) {
+      if (c.fields.some((f) => f.refGroup === name)) setRows((r) => ({ ...r, [c.key]: [blank(c)] }));
+    }
+  };
+  // Menambahkan sekaligus semua pilihan yang tersedia (belum dipakai di baris lain) untuk field berkelompok.
+  const addAll = (c: Child) => {
+    const f = c.fields.find((x) => x.refGroup);
+    if (!f) return;
+    const g = h[f.refGroup!] ?? "";
+    const taken = new Set((rows[c.key] ?? []).map((r) => r[f.name]).filter(Boolean));
+    const add = (refs[refKey(f)] ?? []).filter((o) => o.group === g && !taken.has(o.value)).map((o) => ({ ...blank(c), [f.name]: o.value }));
+    setRows((r) => ({ ...r, [c.key]: [...(r[c.key] ?? []).filter((x) => Object.values(x).some(Boolean)), ...add] }));
+  };
   const blank = (c: Child): Row => Object.fromEntries(c.fields.map((f) => [f.name, f.blankAs0 ? "" : ""]));
   const setCell = (key: string, i: number, name: string, v: string) =>
     setRows((r) => ({ ...r, [key]: r[key].map((row, j) => (j === i ? { ...row, [name]: v } : row)) }));
@@ -77,7 +94,7 @@ export function DocForm({ slug, id, header, lines, refs, initial, cancelHref }: 
             <label htmlFor={`h-${f.name}`} className="mb-1 block text-lg font-semibold">
               {f.label}{f.required && <span className="text-danger"> *</span>}
             </label>
-            <Control f={f} id={`h-${f.name}`} value={h[f.name] ?? ""} onChange={(v) => setH((x) => ({ ...x, [f.name]: v }))} refs={refs} />
+            <Control f={f} id={`h-${f.name}`} value={h[f.name] ?? ""} onChange={(v) => changeHeader(f.name, v)} refs={refs} />
             {f.help && <p className="mt-1 text-sm text-muted">{f.help}</p>}
           </div>
         ))}
@@ -104,7 +121,7 @@ export function DocForm({ slug, id, header, lines, refs, initial, cancelHref }: 
                     {c.fields.map((f) => (
                       <div key={f.name}>
                         <label htmlFor={`${c.key}-${i}-${f.name}`} className="mb-1 block font-semibold">{f.label}</label>
-                        <Control f={f} id={`${c.key}-${i}-${f.name}`} value={row[f.name] ?? ""} onChange={(v) => setCell(c.key, i, f.name, v)} refs={refs} />
+                        <Control f={f} id={`${c.key}-${i}-${f.name}`} value={row[f.name] ?? ""} onChange={(v) => setCell(c.key, i, f.name, v)} refs={refs} groupValue={f.refGroup ? h[f.refGroup] ?? "" : undefined} />
                       </div>
                     ))}
                   </div>
@@ -120,6 +137,12 @@ export function DocForm({ slug, id, header, lines, refs, initial, cancelHref }: 
                 className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">
                 + Tambah baris
               </button>
+              {c.fields.some((f) => f.refGroup) && (
+                <button type="button" onClick={() => addAll(c)} disabled={!h[c.fields.find((f) => f.refGroup)!.refGroup!]}
+                  className="rounded-md border-2 border-line px-5 py-2.5 text-lg font-semibold hover:bg-background disabled:opacity-50">
+                  Tambah semua invoice
+                </button>
+              )}
               {c.total && <p className="text-lg font-semibold">{c.total.label}: {fmtRupiah(total)}</p>}
               {c.sum && <p className="text-lg font-semibold">{c.sum.label}: {c.fields.find((f) => f.name === c.sum!.field)?.kind === "money" ? fmtRupiah(sum) : `${fmtQty(sum)} kg`}</p>}
             </div>

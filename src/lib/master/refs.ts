@@ -2,7 +2,7 @@ import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type { Resource } from "./config";
 
-export type RefOption = { value: string; label: string; active: boolean };
+export type RefOption = { value: string; label: string; active: boolean; group?: string };
 export type RefMap = Record<string, RefOption[]>;
 
 // Mengambil pilihan untuk field bertipe "ref" (kategori, satuan, gudang).

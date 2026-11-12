@@ -186,8 +186,8 @@ export const CONFIGS: Record<string, DocConfig> = {
     children: [{
       key: "items", title: "Invoice yang dikwitansikan", table: "kwitansi_items", fk: "kwitansi_id", required: true,
       select: "*, invoices(doc_number, invoice_date, total, paid_amount)",
-      hint: "Pilih invoice milik customer di atas yang masih punya sisa tagihan. Satu invoice hanya boleh ada di satu kwitansi yang masih berlaku.",
-      fields: [ref("invoice_id", "Invoice", "invoices", { required: true, refStatus: ["ISSUED", "PARTIAL"] })],
+      hint: "Daftar hanya berisi invoice customer di atas yang masih punya sisa tagihan dan belum ada di kwitansi lain. Pakai tombol \"Tambah semua invoice\" untuk memasukkan semuanya sekaligus.",
+      fields: [ref("invoice_id", "Invoice", "invoices", { required: true, refStatus: ["ISSUED", "PARTIAL"], refGroup: "customer_id", refUnusedKw: true })],
       columns: [c("Invoice", "invoices.doc_number"), c("Tanggal", "invoices.invoice_date", "date"), c("Total", "invoices.total", "money"), c("Sudah dibayar", "invoices.paid_amount", "money")],
     }],
     statuses: ["DRAFT", "ISSUED", "VOID"], prefill: [],

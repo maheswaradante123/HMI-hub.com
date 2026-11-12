@@ -17,6 +17,8 @@ export type Field = {
   options?: { value: string; label: string }[];
   help?: string;
   today?: boolean;            // isi awal = hari ini (WIB)
+  refGroup?: string;          // baris anak: tampilkan hanya pilihan yang group-nya sama dengan isian header ini (mis. customer_id)
+  refUnusedKw?: boolean;      // sembunyikan invoice yang sudah ada di kwitansi lain yang masih berlaku
   initial?: string;           // isi awal tetap (mis. nama penandatangan)
   blankAs0?: boolean;         // kosong dianggap 0 (mis. harga otomatis)
   upper?: boolean;
