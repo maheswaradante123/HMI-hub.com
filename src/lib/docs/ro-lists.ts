@@ -1,6 +1,7 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type { RoCustomer, RoProduct } from "@/components/ro-form";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export async function loadRoLists(supabase: Awaited<ReturnType<typeof createClient>>): Promise<{ customers: RoCustomer[]; products: RoProduct[]; units: { id: string; name: string }[]; categories: { id: string; name: string }[] }> {
   const [c, p, u, k] = await Promise.all([
@@ -25,11 +26,13 @@ export type PoRo = {
 
 // RO yang sudah dikonfirmasi beserta isinya, untuk form Production Order.
 export async function loadPoRos(supabase: Awaited<ReturnType<typeof createClient>>, keepId?: string): Promise<PoRo[]> {
-  const q = supabase.from("request_orders")
-    .select("id, doc_number, order_date, delivery_date, delivery_time, delivery_method, delivery_address, phone, customers(name), ro_items(product_id, qty, cut_type, packaging, line_no), production_orders(doc_number, status, deleted_at)")
-    .is("deleted_at", null).order("doc_number", { ascending: false }).limit(300);
-  const { data } = keepId ? await q.or(`status.eq.CONFIRMED,id.eq.${keepId}`) : await q.eq("status", "CONFIRMED");
-  return (data ?? []).map((r) => {
+  const { data } = await fetchAll((from, to) => {
+    const q = supabase.from("request_orders")
+      .select("id, doc_number, order_date, delivery_date, delivery_time, delivery_method, delivery_address, phone, customers(name), ro_items(product_id, qty, cut_type, packaging, line_no), production_orders(doc_number, status, deleted_at)")
+      .is("deleted_at", null).order("doc_number", { ascending: false }).order("id").range(from, to);
+    return keepId ? q.or(`status.eq.CONFIRMED,id.eq.${keepId}`) : q.eq("status", "CONFIRMED");
+  });
+  return data.map((r) => {
     const pos = ((r.production_orders as unknown as { doc_number: string; status: string; deleted_at: string | null }[]) ?? []).filter((p) => !p.deleted_at);
     const act = pos.find((p) => !["REJECTED", "CANCELLED"].includes(p.status));
     const cu = r.customers as unknown as { name: string } | null;
@@ -47,10 +50,12 @@ export type PlRo = { id: string; no: string; customerId: string; customer: strin
 
 // RO yang boleh diacu Packing List (dikonfirmasi atau selesai), plus RO yang sudah tersimpan di dokumen.
 export async function loadPlRos(supabase: Awaited<ReturnType<typeof createClient>>, keepId?: string): Promise<PlRo[]> {
-  const q = supabase.from("request_orders").select("id, doc_number, customer_id, phone, customers(name)")
-    .is("deleted_at", null).order("doc_number", { ascending: false }).limit(300);
-  const { data } = keepId ? await q.or(`status.in.(CONFIRMED,COMPLETED),id.eq.${keepId}`) : await q.in("status", ["CONFIRMED", "COMPLETED"]);
-  return (data ?? []).map((r) => ({
+  const { data } = await fetchAll((from, to) => {
+    const q = supabase.from("request_orders").select("id, doc_number, customer_id, phone, customers(name)")
+      .is("deleted_at", null).order("doc_number", { ascending: false }).order("id").range(from, to);
+    return keepId ? q.or(`status.in.(CONFIRMED,COMPLETED),id.eq.${keepId}`) : q.in("status", ["CONFIRMED", "COMPLETED"]);
+  });
+  return data.map((r) => ({
     id: r.id, no: r.doc_number, customerId: r.customer_id, phone: r.phone ?? "",
     customer: (r.customers as unknown as { name: string } | null)?.name ?? "",
   }));
@@ -66,9 +71,9 @@ export type InvPl = { id: string; no: string; customerId: string; customer: stri
 // Packing List yang sudah dikemas dan belum ditagih (ditambah PL milik invoice yang sedang diubah).
 export async function loadInvPls(supabase: Awaited<ReturnType<typeof createClient>>, keepId?: string): Promise<InvPl[]> {
   const [{ data: pls }, { data: used }] = await Promise.all([
-    supabase.from("packing_lists").select("id, doc_number, customer_id, phone, status, customers(name, code), pl_items(qty)")
-      .is("deleted_at", null).in("status", ["PACKED", "DELIVERED"]).order("doc_number", { ascending: false }).limit(300),
-    supabase.from("invoices").select("pl_id").not("pl_id", "is", null).neq("status", "VOID").is("deleted_at", null),
+    fetchAll((from, to) => supabase.from("packing_lists").select("id, doc_number, customer_id, phone, status, customers(name, code), pl_items(qty)")
+      .is("deleted_at", null).in("status", ["PACKED", "DELIVERED"]).order("doc_number", { ascending: false }).order("id").range(from, to)),
+    fetchAll((from, to) => supabase.from("invoices").select("pl_id").not("pl_id", "is", null).neq("status", "VOID").is("deleted_at", null).order("id").range(from, to)),
   ]);
   const taken = new Set((used ?? []).map((u) => u.pl_id as string));
   return (pls ?? []).filter((p) => !taken.has(p.id) || p.id === keepId).map((p) => {

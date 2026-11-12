@@ -1,6 +1,7 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type { ApCow, ApProduct } from "./ap";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
@@ -24,8 +25,8 @@ export async function loadApLists(supabase: Supa, apId: string | null, today: st
   const [sup, cow, cws, used, prod, price, non, cost, seq] = await Promise.all([
     supabase.from("suppliers").select("id, name").eq("is_active", true).order("name"),
     supabase.from("cow_types").select("id, code, name").eq("is_active", true).order("code"),
-    supabase.from("carcass_weighings").select("id, cow_number, doc_number, live_weight, carcass_weight, supplier_id, cow_type_id, cw_items(product_id, weight, line_no)")
-      .eq("status", "FINAL").is("deleted_at", null).order("doc_number", { ascending: false }).limit(300),
+    fetchAll((from, to) => supabase.from("carcass_weighings").select("id, cow_number, doc_number, live_weight, carcass_weight, supplier_id, cow_type_id, cw_items(product_id, weight, line_no)")
+      .eq("status", "FINAL").is("deleted_at", null).order("doc_number", { ascending: false }).order("id").range(from, to)),
     supabase.from("ap_cows").select("cw_id, ap_id, purchase_analyses!inner(status, deleted_at)").neq("purchase_analyses.status", "VOID").is("purchase_analyses.deleted_at", null),
     supabase.from("products").select("id, code, name, product_categories(code)").eq("is_active", true).order("name"),
     supabase.from("v_current_prices").select("product_id, sell_price"),

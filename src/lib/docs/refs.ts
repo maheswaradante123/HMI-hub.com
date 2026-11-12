@@ -1,4 +1,5 @@
 import "server-only";
+import { fetchAll } from "@/lib/supabase/fetch-all";
 import type { createClient } from "@/lib/supabase/server";
 import type { Field, RefName } from "./types";
 import type { RefOption } from "@/lib/master/refs";
@@ -38,14 +39,16 @@ export async function loadDocRefs(supabase: Supa, fields: Field[], keep: string[
 
   await Promise.all([...wanted.entries()].map(async ([key, f]) => {
     const spec = REFS[f.ref!];
-    let q = supabase.from(spec.table).select(spec.select).order(spec.order, { ascending: spec.docs ? false : true }).limit(500);
-    if (spec.docs) {
-      q = q.is("deleted_at", null);
-      if (f.refStatus?.length) q = q.in("status", f.refStatus);
-    }
-    if (f.refWhere) q = q.eq(f.refWhere.column, f.refWhere.value);
-    const { data } = await q;
-    const rows = (data ?? []) as unknown as Row[];
+    const { data } = await fetchAll<Row>((from, to) => {
+      let q = supabase.from(spec.table).select(spec.select).order(spec.order, { ascending: spec.docs ? false : true }).order("id").range(from, to);
+      if (spec.docs) {
+        q = q.is("deleted_at", null);
+        if (f.refStatus?.length) q = q.in("status", f.refStatus);
+      }
+      if (f.refWhere) q = q.eq(f.refWhere.column, f.refWhere.value);
+      return q as unknown as PromiseLike<{ data: Row[] | null; error: unknown }>;
+    });
+    const rows = data;
     const have = new Set(rows.map((r) => String(r.id)));
     const missing = keep.filter((id) => id && !have.has(id));
     let extra: Row[] = [];
