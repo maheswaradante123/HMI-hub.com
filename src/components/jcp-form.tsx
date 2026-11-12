@@ -1,8 +1,9 @@
 "use client";
 
-import { DriveUpload } from "@/components/drive-upload";
+import { CpjDocs, folderIdOf } from "@/components/cpj-docs";
+import type { FolderFile } from "@/lib/drive/types";
 import Link from "next/link";
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { pullPrItems, saveDoc, type DocFormState, type PrItemPull } from "@/app/(app)/d/actions";
 import { parseMoney } from "@/lib/pricing/schema";
 import { fmtRupiah } from "@/lib/docs/format";
@@ -34,6 +35,19 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
   const [pick, setPick] = useState<Set<string>>(new Set());
   const [paste, setPaste] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const [overview, setOverview] = useState<Record<string, FolderFile[]>>({});
+  const jd = h.journal_date ?? "";
+  const [tick, setTick] = useState(0);
+  const loadOverview = () => setTick((n) => n + 1);
+  useEffect(() => {
+    if (!number || !jd) return;
+    let off = false;
+    fetch(`/api/drive/cpj?number=${encodeURIComponent(number)}&date=${encodeURIComponent(jd)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!off && j) setOverview(j.folders ?? {}); })
+      .catch(() => { /* kelengkapan tidak tampil bila Drive belum diatur atau offline */ });
+    return () => { off = true; };
+  }, [number, jd, tick]);
 
   const setLine = (i: number, k: string, v: string) => setLines((r) => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const num = lines.map((l) => ({ price: money(l.price), qty: qty(l.qty), flag: l.flag, real_price: maybe(l.real_price, money), real_qty: maybe(l.real_qty, qty) }));
@@ -130,9 +144,15 @@ export function JcpForm({ id, status, initial, number, cancelHref }: {
                       <td className="py-1 pr-1"><input aria-label={`Real price ${i + 1}`} inputMode="decimal" className={`${inp} text-right`} value={l.real_price ?? ""} onChange={(e) => setLine(i, "real_price", e.target.value)} /></td>
                       <td className="py-1 pr-1"><input aria-label={`Real qty ${i + 1}`} inputMode="decimal" className={`${inp} text-right`} value={l.real_qty ?? ""} onChange={(e) => setLine(i, "real_qty", e.target.value)} /></td>
                       <td className="py-1 pr-2 pt-3 text-right tabular-nums">{ra === null ? "-" : fmtRupiah(ra)}</td>
-                      <td className="py-1 pr-1"><div className="flex items-start gap-1"><input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} /><DriveUpload area="CPJ" compact label="⬆" link={l.proof ?? ""} folder={{ number, date: h.journal_date ?? "", item: l.description ?? "" }}
-                        blocked={!number ? "Simpan dokumen dulu supaya nomor CPJ terbentuk, baru unggah bukti." : !(l.description ?? "").trim() ? "Isi Description item dulu (dipakai sebagai nama folder)." : !h.journal_date ? "Isi tanggal jurnal dulu." : undefined}
-                        onDone={(link) => setLine(i, "proof", link)} />{/^https?:\/\//.test(l.proof ?? "") && <a href={l.proof} target="_blank" rel="noreferrer" aria-label={`Buka folder bukti ${i + 1}`} title="Buka folder bukti" className="px-1 pt-2 text-brand">↗</a>}</div></td>
+                      <td className="py-1 pr-1">
+                        <div className="flex items-start gap-1">
+                          <input aria-label={`Bukti ${i + 1}`} className={inp} value={l.proof ?? ""} onChange={(e) => setLine(i, "proof", e.target.value)} />
+                          {/^https?:\/\//.test(l.proof ?? "") && <a href={l.proof} target="_blank" rel="noreferrer" aria-label={`Buka folder bukti ${i + 1}`} title="Buka folder bukti" className="px-1 pt-2 text-brand">↗</a>}
+                        </div>
+                        <CpjDocs number={number} date={h.journal_date ?? ""} item={l.description ?? ""} proof={l.proof ?? ""} files={overview[folderIdOf(l.proof ?? "")] ?? []}
+                          blocked={!number ? "Simpan dokumen dulu supaya nomor CPJ terbentuk, baru unggah dokumen." : !(l.description ?? "").trim() ? "Isi Description item dulu (dipakai sebagai nama folder)." : !h.journal_date ? "Isi tanggal jurnal dulu." : undefined}
+                          onProof={(link) => setLine(i, "proof", link)} onChanged={loadOverview} />
+                      </td>
                       <td className="py-1 pt-2">{!locked && <button type="button" aria-label={`Hapus baris ${i + 1}`} disabled={lines.length === 1} onClick={() => setLines((x) => x.filter((_, j) => j !== i))} className="rounded-md px-2 py-1 text-xl text-danger hover:bg-danger-bg disabled:opacity-30">×</button>}</td>
                     </tr>
                   );

@@ -5,11 +5,9 @@
 export const ROOT_FOLDER = "HMI Hub Uploads";
 export const AREAS = ["CPJ", "CRJ", "PMT", "PR", "DO", "LAIN"] as const;
 export type Area = (typeof AREAS)[number];
-// Jenis berkas bukti realisasi CPJ; menjadi awalan nama file di Drive ("Invoice - scan.pdf").
-export const DOC_TYPES = ["PO", "Surat Jalan", "Invoice", "Bukti Penerimaan", "Bukti Transfer", "Lainnya"] as const;
-export type DocType = (typeof DOC_TYPES)[number];
-export const isDocType = (v: unknown): v is DocType => typeof v === "string" && (DOC_TYPES as readonly string[]).includes(v);
-export const typedName = (t: DocType, name: string) => `${t} - ${name}`.slice(0, 200);
+export { DOC_TYPES, CPJ_REQUIRED, isDocType, typedName } from "./types.ts";
+export type { DocType, FolderFile } from "./types.ts";
+import type { DocType, FolderFile } from "./types.ts";
 
 export const MAX_BYTES = 200 * 1024 * 1024;
 export const ALLOWED_MIME = new Set([
@@ -156,16 +154,43 @@ export async function finishUpload(token: string, fileId: string, f: Fetch = fet
   return { id: meta.id, name: meta.name, link: meta.webViewLink ?? `https://drive.google.com/file/d/${meta.id}/view` };
 }
 
-export type FolderFile = { id: string; name: string; link: string; docType: string; createdTime: string };
+type RawFile = { id: string; name: string; webViewLink?: string; parents?: string[]; appProperties?: Record<string, string> };
+const ID_RE = /^[A-Za-z0-9_-]{10,}$/;
+const toFile = (x: RawFile): FolderFile => ({
+  id: x.id, name: x.name, link: x.webViewLink ?? `https://drive.google.com/file/d/${x.id}/view`,
+  docType: x.appProperties?.docType ?? "", parent: x.parents?.[0] ?? "",
+});
 
-// Daftar berkas di satu folder (hanya yang dibuat lewat HMI Hub; izin drive.file tidak melihat yang lain).
-export async function listFolder(token: string, folderId: string, f: Fetch = fetch): Promise<FolderFile[]> {
-  if (!/^[A-Za-z0-9_-]{10,}$/.test(folderId)) throw new DriveError("ID folder tidak valid.", 400);
-  const q = `'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
-  const r = await api<{ files?: { id: string; name: string; webViewLink?: string; createdTime?: string; appProperties?: Record<string, string> }[] }>(
-    token, f, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: "files(id,name,webViewLink,createdTime,appProperties)", orderBy: "createdTime", pageSize: "100" })}`);
-  return (r.files ?? []).map((x) => ({
-    id: x.id, name: x.name, link: x.webViewLink ?? `https://drive.google.com/file/d/${x.id}/view`,
-    docType: x.appProperties?.docType ?? "", createdTime: x.createdTime ?? "",
-  }));
+// Berkas (bukan folder) di dalam satu atau beberapa folder. Izin drive.file hanya memperlihatkan berkas yang dibuat lewat HMI Hub.
+export async function filesIn(token: string, folderIds: string[], f: Fetch = fetch): Promise<FolderFile[]> {
+  if (!folderIds.every((x) => ID_RE.test(x))) throw new DriveError("ID folder tidak valid.", 400);
+  const out: FolderFile[] = [];
+  for (let k = 0; k < folderIds.length; k += 15) {
+    const ors = folderIds.slice(k, k + 15).map((x) => `'${x}' in parents`).join(" or ");
+    const q = `(${ors}) and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
+    const r = await api<{ files?: RawFile[] }>(token, f, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: "files(id,name,webViewLink,parents,appProperties)", orderBy: "createdTime", pageSize: "1000" })}`);
+    out.push(...(r.files ?? []).map(toFile));
+  }
+  return out;
+}
+export const listFolder = (token: string, folderId: string, f: Fetch = fetch) => filesIn(token, [folderId], f);
+
+async function findFolder(token: string, name: string, parent: string | null, f: Fetch): Promise<string | null> {
+  const q = `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${qEscape(name)}' and ${parent ? `'${parent}' in parents` : "'root' in parents"}`;
+  const r = await api<{ files?: { id: string }[] }>(token, f, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q, fields: "files(id)", pageSize: "1" })}`);
+  return r.files?.[0]?.id ?? null;
+}
+
+// Semua berkas bukti satu CPJ, dikelompokkan per folder item: { <folderId>: berkas[] }. Tidak membuat folder apa pun.
+export async function cpjOverview(token: string, i: { number: unknown; date: unknown }, f: Fetch = fetch): Promise<Record<string, FolderFile[]>> {
+  const base = cpjFolderPath({ ...i, item: "x" });
+  if (!base) throw new DriveError("Nomor CPJ atau tanggal jurnal tidak valid.", 400);
+  let id: string | null = null;
+  for (const seg of base.slice(0, -1)) { id = await findFolder(token, seg, id, f); if (!id) return {}; }
+  const subs = await api<{ files?: { id: string }[] }>(token, f, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({
+    q: `'${id}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'`, fields: "files(id)", pageSize: "200" })}`);
+  const ids = (subs.files ?? []).map((x) => x.id);
+  const grouped: Record<string, FolderFile[]> = Object.fromEntries(ids.map((x) => [x, []]));
+  for (const file of await filesIn(token, ids, f)) (grouped[file.parent] ??= []).push(file);
+  return grouped;
 }

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   accessToken, resetTokenCache, driveConfigured, validateUpload, folderPath, safeFileName, qEscape,
-  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, isDocType, typedName, listFolder, DriveError, MAX_BYTES,
+  ensureFolder, ensurePath, startUpload, finishUpload, cpjFolderPath, shareFolder, folderLink, isDocType, typedName, listFolder, cpjOverview, DriveError, MAX_BYTES,
 } from "./core.ts";
 
 const ENV = { GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "sec", GOOGLE_REFRESH_TOKEN: "rt" };
@@ -151,4 +151,24 @@ test("listFolder memetakan berkas dan menolak ID aneh", async () => {
   assert.deepEqual(r.map((x) => [x.id, x.docType]), [["A1", "PO"], ["B2", ""]]);
   assert.match(dq(m.calls[0].url), /'FOLDERID123' in parents/);
   await assert.rejects(listFolder("t", "x' or '1'='1", m.f), DriveError);
+});
+
+test("cpjOverview: kelompokkan berkas per folder item, tanpa membuat folder", async () => {
+  const m = mock((c) => {
+    const q = dq(c.url);
+    if (q.includes("mimeType='application/vnd.google-apps.folder' and trashed=false and name=")) return json({ files: [{ id: "PARENTID0001" }] });
+    if (q.includes("mimeType='application/vnd.google-apps.folder'") && q.includes("in parents and trashed=false and mimeType=")) return json({ files: [{ id: "ITEMFOLDER01" }, { id: "ITEMFOLDER02" }] });
+    return json({ files: [
+      { id: "f1", name: "PO - a.pdf", parents: ["ITEMFOLDER01"], appProperties: { docType: "PO" } },
+      { id: "f2", name: "Invoice - b.pdf", parents: ["ITEMFOLDER01"], appProperties: { docType: "Invoice" } },
+    ] });
+  });
+  const r = await cpjOverview("t", { number: "CPJ-005-X-26", date: "2026-10-12" }, m.f);
+  assert.deepEqual(Object.keys(r).sort(), ["ITEMFOLDER01", "ITEMFOLDER02"]);
+  assert.equal(r["ITEMFOLDER01"].length, 2);
+  assert.equal(r["ITEMFOLDER02"].length, 0);
+  assert.ok(m.calls.every((c) => (c.init?.method ?? "GET") === "GET"));
+  const none = mock(() => json({ files: [] }));
+  assert.deepEqual(await cpjOverview("t", { number: "CPJ-005-X-26", date: "2026-10-12" }, none.f), {});
+  await assert.rejects(cpjOverview("t", { number: "", date: "x" }, none.f), DriveError);
 });

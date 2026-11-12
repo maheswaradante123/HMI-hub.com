@@ -5,11 +5,11 @@ Google Drive perusahaan, lalu mengisi tautannya otomatis. Isi file **tidak** dis
 
 - Akun Drive: `harmonimitrainovindo@gmail.com`
 - Lokasi umum: `HMI Hub Uploads / <CRJ|PMT|PR|DO|LAIN> / <tahun-bulan>`
-- Bukti realisasi **CPJ**: `HMI Hub Uploads / CPJ / 2026 / Oktober 2026 / CPJ-005-X-26 / <Description item>`. Tombol ⬆ di kolom Bukti
-  menerima banyak file sekaligus (PO, Surat Jalan, Invoice, bukti terima, bukti transfer), lalu kolom Bukti terisi tautan **folder** item itu.
-  Sebelum unggah pilih **jenis berkas** (PO, Surat Jalan, Invoice, Bukti Penerimaan, Bukti Transfer, Lainnya); jenis itu menjadi awalan nama file
-  di Drive ("Invoice - scan.pdf") dan tampil lagi lewat tautan **Lihat berkas** di bawah tombol.
-  Bulan mengikuti tanggal jurnal; dokumen harus sudah disimpan (punya nomor) dan Description item terisi.
+- Bukti realisasi **CPJ**: `HMI Hub Uploads / CPJ / 2026 / Oktober 2026 / CPJ-005-X-26 / <Description item>`.
+  Di kolom Bukti tiap item ada tombol **Dokumen n/5**. Isinya daftar kelengkapan: PO, Surat Jalan, Invoice, Bukti Penerimaan, Bukti Transfer
+  (plus "Lainnya", opsional). Tiap jenis punya tombol Unggah sendiri (boleh banyak file) dan ditandai ✓ bila sudah ada. Jenis menjadi awalan nama
+  file di Drive ("Invoice - scan.pdf"). Kolom Bukti terisi tautan folder item. Bulan mengikuti tanggal jurnal; dokumen harus sudah disimpan
+  (punya nomor) dan Description item terisi.
 - Jangan mengubah nama atau memindahkan folder `HMI Hub Uploads`; aplikasi mencarinya berdasarkan nama di Drive Saya. Isinya boleh diatur bebas.
 - Folder lama yang Anda buat manual (mis. `#ADMINKEU/CPJ`) tidak terlihat oleh aplikasi karena izinnya hanya `drive.file`; folder baru dibuat terpisah dengan susunan yang sama.
 - Akses file: siapa pun yang punya tautan (hanya bisa melihat)
