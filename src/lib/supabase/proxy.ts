@@ -30,7 +30,8 @@ export async function updateSession(request: NextRequest) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
-  const isLogin = request.nextUrl.pathname.startsWith("/login");
+  const path = request.nextUrl.pathname;
+  const isLogin = path.startsWith("/login") || path === "/kebijakan-privasi"; // halaman publik tanpa login
 
   if (!user && !isLogin) {
     const url = request.nextUrl.clone();
