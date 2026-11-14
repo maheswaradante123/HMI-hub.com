@@ -55,3 +55,24 @@ export const JCP_SUMMARY_LABELS: [keyof JcpTotals, string][] = [
   ["requested", "Total Permintaan"], ["approved", "Total Yang Disetujui"], ["cashIn", "Uang Saat ini"], ["mustPay", "Yang harus dibayarkan"],
   ["toSpend", "Yang perlu dibelanjakan"], ["spent", "Realisasi Uang Keluar"], ["remaining", "Sisa Uang"],
 ];
+
+// Rincian Petty Cash: baris yang deskripsinya memuat "petty cash" dijabarkan menjadi beberapa transaksi.
+export const isPettyLine = (description: unknown) => /petty\s*cash/i.test(String(description ?? ""));
+export type JcpDetail = { no: number; date: string; text: string; amount: string; proof: string };
+/** Membaca rincian dari teks JSON (form) atau larik (database); jumlah selalu dikembalikan sebagai teks isian. */
+export function parseDetails(raw: unknown): JcpDetail[] {
+  let arr: unknown = raw;
+  if (typeof raw === "string") { try { arr = JSON.parse(raw); } catch { return []; } }
+  if (!Array.isArray(arr)) return [];
+  return arr.map((x, i) => {
+    const o = (x ?? {}) as Record<string, unknown>;
+    const a = o.amount;
+    return {
+      no: Number.isInteger(Number(o.no)) && Number(o.no) > 0 ? Number(o.no) : i + 1,
+      date: String(o.date ?? ""), text: String(o.text ?? ""), proof: String(o.proof ?? ""),
+      amount: typeof a === "number" ? a.toLocaleString("id-ID") : String(a ?? ""),
+    };
+  });
+}
+/** Nama folder Drive untuk satu rincian: tetap walau urutan atau uraian berubah. */
+export const detailFolderName = (lineDescription: string, no: number) => `${lineDescription.trim()} - Rincian ${String(no).padStart(2, "0")}`;

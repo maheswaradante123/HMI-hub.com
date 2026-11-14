@@ -25,6 +25,39 @@ export type Row = Record<string, Value>;
 export type Parsed = { ok: true; header: Row; children: Record<string, Row[]> } | { ok: false; error: string };
 export type Payload = { header?: Record<string, string>; children?: Record<string, Record<string, string>[]> };
 
+// Rincian Petty Cash: daftar transaksi {no, date, text, amount, proof}. Baris kosong dibuang; hasilnya teks JSON yang sudah dinormalkan.
+function parseDetails(t: string, where: string): { v: Value } | { error: string } {
+  if (t.length > 40000) return { error: `${where}Rincian Petty Cash terlalu panjang.` };
+  let arr: unknown;
+  try { arr = JSON.parse(t); } catch { return { error: `${where}Rincian Petty Cash tidak terbaca.` }; }
+  if (!Array.isArray(arr)) return { error: `${where}Rincian Petty Cash tidak terbaca.` };
+  if (arr.length > 60) return { error: `${where}Rincian Petty Cash terlalu banyak (maksimal 60).` };
+  const out: { no: number; date: string; text: string; amount: number; proof: string }[] = [];
+  const used = new Set<number>();
+  for (let i = 0; i < arr.length; i++) {
+    const o = (arr[i] ?? {}) as Record<string, unknown>;
+    const text = String(o.text ?? "").trim();
+    const rawAmt = typeof o.amount === "number" ? String(o.amount) : String(o.amount ?? "").trim();
+    const date = String(o.date ?? "").trim();
+    const proof = String(o.proof ?? "").trim();
+    if (!text && !rawAmt) continue;
+    const at = `${where}Rincian ${out.length + 1}: `;
+    if (!text) return { error: `${at}isi "Digunakan untuk".` };
+    if (text.length > 200) return { error: `${at}"Digunakan untuk" terlalu panjang (maksimal 200 huruf).` };
+    const amt = parseMoney(rawAmt);
+    if (amt === "invalid" || amt === null || amt <= 0) return { error: `${at}jumlah harus berupa angka rupiah lebih dari 0 (contoh 25.000).` };
+    if (date && !isRealDate(date)) return { error: `${at}tanggal tidak benar.` };
+    if (proof.length > 1000) return { error: `${at}tautan dokumen terlalu panjang.` };
+    let no = Number(o.no);
+    if (!Number.isInteger(no) || no < 1 || used.has(no)) no = 0;
+    out.push({ no, date, text, amount: amt, proof });
+    if (no) used.add(no);
+  }
+  let next = Math.max(0, ...used) + 1;
+  for (const d of out) if (!d.no) d.no = next++;
+  return { v: JSON.stringify(out) };
+}
+
 function parseField(f: Field, raw: string, where: string): { v: Value } | { error: string } {
   const t = (raw ?? "").trim();
   if (t === "") {
@@ -52,6 +85,8 @@ function parseField(f: Field, raw: string, where: string): { v: Value } | { erro
       if (n === "invalid" || n === null) return { error: `${where}${f.label} harus berupa angka rupiah (contoh 135.000 atau -50.000).` };
       return { v: neg ? -n : n };
     }
+    case "json":
+      return parseDetails(t, where);
     case "ref":
       return UUID.test(t) ? { v: t } : { error: `${where}${f.label} belum dipilih dengan benar.` };
     case "select":

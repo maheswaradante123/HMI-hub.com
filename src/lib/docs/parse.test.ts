@@ -97,3 +97,24 @@ test("kwitansi: invoice yang sama tidak boleh dipilih dua kali", () => {
   assert.equal(r.ok, false);
   assert.match(r.ok ? "" : r.error, /lebih dari sekali/);
 });
+
+test("rincian Petty Cash: dinormalkan, baris kosong dibuang, nomor stabil, jumlah wajib benar", () => {
+  const jcp = CONFIGS.jcp;
+  const line = (details: string) => ({ header: { journal_date: "2026-10-31" }, children: { lines: [{ description: "Petty Cash", price: "500.000", qty: "1", flag: "NONE", details }] } });
+  const ok = parseDoc(jcp, line(JSON.stringify([
+    { no: 2, date: "2026-10-31", text: "Bensin", amount: "50.000", proof: "" },
+    { no: "", date: "", text: "", amount: "", proof: "" },
+    { no: 0, date: "2026-11-01", text: "Parkir", amount: "71.000", proof: "https://drive.google.com/drive/folders/x" },
+  ])));
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.deepEqual(JSON.parse(String(ok.children.lines[0].details)), [
+    { no: 2, date: "2026-10-31", text: "Bensin", amount: 50000, proof: "" },
+    { no: 3, date: "2026-11-01", text: "Parkir", amount: 71000, proof: "https://drive.google.com/drive/folders/x" },
+  ]);
+  assert.equal(parseDoc(jcp, line(JSON.stringify([{ text: "Bensin", amount: "abc" }]))).ok, false);
+  assert.equal(parseDoc(jcp, line(JSON.stringify([{ text: "", amount: "5.000" }]))).ok, false);
+  assert.equal(parseDoc(jcp, line(JSON.stringify([{ text: "A", amount: "0" }]))).ok, false);
+  assert.equal(parseDoc(jcp, line(JSON.stringify([{ text: "A", amount: "5.000", date: "2026-02-31" }]))).ok, false);
+  assert.equal(parseDoc(jcp, line("bukan json")).ok, false);
+  assert.equal(parseDoc(jcp, line("")).ok, true);
+});

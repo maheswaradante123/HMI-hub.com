@@ -297,7 +297,7 @@ export const CONFIGS: Record<string, DocConfig> = {
       fields: [f("trans_date", "Tanggal transaksi", "date"), f("ac", "A/C", "text"), f("code", "Kode", "text"), f("description", "Description", "text", { required: true }),
         f("price", "Price", "money", { blankAs0: true }), f("qty", "Qty", "qty", { required: true }), f("unit", "Unit", "text"),
         f("flag", "Jenis baris", "select", { options: [{ value: "NONE", label: "Normal" }, { value: "NON_CPJ", label: "Terbayarkan oleh non rekening CPJ" }, { value: "OVER", label: "Over Budget CPJ Sebelumnya" }, { value: "REJECTED", label: "Permintaan ditolak" }, { value: "INCOMING", label: "Uang Masuk" }] }),
-        f("pr_item_id", "Item PR", "text"), f("real_price", "Realisasi price", "money"), f("real_qty", "Realisasi qty", "qty"), f("proof", "Attachment of proof", "text")],
+        f("pr_item_id", "Item PR", "text"), f("real_price", "Realisasi price", "money"), f("real_qty", "Realisasi qty", "qty"), f("proof", "Attachment of proof", "text"), f("details", "Rincian Petty Cash", "json")],
       columns: [c("Tanggal", "trans_date", "date"), c("A/C", "ac"), c("Kode", "code"), c("Description", "description"), c("Price", "price", "money"), c("Qty", "qty", "qty"), c("Unit", "unit")],
     }],
     statuses: ["DRAFT", "WAITING", "ACC", "REALIZED", "VOID"], prefill: [],

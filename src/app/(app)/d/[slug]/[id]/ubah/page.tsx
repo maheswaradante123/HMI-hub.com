@@ -52,7 +52,7 @@ export default async function EditDocPage({ params }: { params: Promise<{ slug: 
   const header = Object.fromEntries(cfg.header.map((f) => [f.name, f.kind === "money" || f.kind === "qty" ? fmtNum(doc[f.name], f.kind === "money") : String(doc[f.name] ?? "")]));
   const children = Object.fromEntries(cfg.children.map((c) => {
     const rows = ((doc[c.table] as Record<string, unknown>[] | undefined) ?? []).slice().sort((a, b) => Number(a.line_no) - Number(b.line_no));
-    return [c.key, rows.map((r) => Object.fromEntries(c.fields.map((f) => [f.name, f.kind === "money" || f.kind === "qty" ? (f.blankAs0 && Number(r[f.name]) === 0 ? "" : fmtNum(r[f.name], f.kind === "money")) : String(r[f.name] ?? "")])))];
+    return [c.key, rows.map((r) => Object.fromEntries(c.fields.map((f) => [f.name, f.kind === "json" ? (r[f.name] ? JSON.stringify(r[f.name]) : "") : f.kind === "money" || f.kind === "qty" ? (f.blankAs0 && Number(r[f.name]) === 0 ? "" : fmtNum(r[f.name], f.kind === "money")) : String(r[f.name] ?? "")])))];
   }));
   if (slug === "ro") {
     const lists = await loadRoLists(supabase);

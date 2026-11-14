@@ -12,7 +12,7 @@ import { DocFlow, DoSteps } from "@/components/doc-flow";
 import { cellText, fmtDate, fmtQty, fmtRupiah, isNumericKind, fmtDateTime } from "@/lib/docs/format";
 import type { Rule } from "@/lib/docs/rules";
 import { pmtTotals, PMT_COLS } from "@/lib/docs/pmt";
-import { JCP_FLAG_BG, JCP_FLAGS, JCP_SUMMARY_LABELS, jcpPrintNumber, jcpTotals, planAmount, realAmount } from "@/lib/docs/jcp";
+import { JCP_FLAG_BG, JCP_FLAGS, JCP_SUMMARY_LABELS, isPettyLine, jcpPrintNumber, jcpTotals, parseDetails, planAmount, realAmount } from "@/lib/docs/jcp";
 import { loadNames } from "@/lib/pr/data";
 import { CRJ_SOURCE_LABEL, sumBy } from "@/lib/docs/crj";
 import { CW_CATS, cwCatFromCode, cwTotals, type CwCat } from "@/lib/docs/cw";
@@ -287,6 +287,37 @@ export default async function DocDetailPage({
                 </tbody>
               </table>
             </div>
+            {rows.map((r, i) => {
+              if (!isPettyLine(r.description) || ["REJECTED", "INCOMING"].includes(String(r.flag))) return null;
+              const ds = parseDetails(r.details);
+              const target = realAmount(nums[i], true) ?? 0;
+              const sum = ds.reduce((x, d) => x + (Number(d.amount.replace(/\./g, "").replace(",", ".")) || 0), 0);
+              return (
+                <div key={`pc-${String(r.id)}`} className="mt-5 rounded-lg border border-line bg-surface p-4">
+                  <h3 className="text-lg font-bold">Rincian Petty Cash (baris {i + 1}): digunakan untuk apa saja</h3>
+                  {ds.length === 0 ? <p className="mt-2 text-muted">Belum ada rincian.</p> : (
+                    <div className="mt-2 overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-left">
+                        <thead className="border-b border-line"><tr>{["No", "Tanggal", "Digunakan untuk", "Jumlah", "Dokumen"].map((h) => <th key={h} scope="col" className={`px-3 py-2 font-semibold ${h === "Jumlah" ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {ds.map((d, k) => (
+                            <tr key={d.no} className="border-b border-line last:border-0">
+                              <td className="px-3 py-2 text-muted">{k + 1}</td>
+                              <td className="whitespace-nowrap px-3 py-2">{d.date ? fmtDate(d.date) : "-"}</td>
+                              <td className="px-3 py-2">{d.text}</td>
+                              <td className="px-3 py-2 text-right tabular-nums">{fmtRupiah(Number(d.amount.replace(/\./g, "").replace(",", ".")) || 0)}</td>
+                              <td className="px-3 py-2">{/^https?:\/\//.test(d.proof) ? <a className="font-semibold text-brand underline" href={d.proof} target="_blank" rel="noopener noreferrer">Buka folder</a> : <span className="text-muted">Belum ada</span>}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="mt-2">Total rincian <b className="tabular-nums">{fmtRupiah(sum)}</b> dari realisasi <b className="tabular-nums">{fmtRupiah(target)}</b>
+                    {sum === target ? <span className="ml-2 font-semibold text-green-800">sudah sama</span> : <span className="ml-2 font-semibold text-danger">selisih {fmtRupiah(Math.abs(target - sum))}</span>}</p>
+                </div>
+              );
+            })}
             <p className="mt-2 text-sm text-muted">Warna baris: kuning = terbayarkan oleh non rekening CPJ, oranye = over budget CPJ sebelumnya, merah = permintaan ditolak, biru muda = uang masuk.</p>
             <dl className="mt-4 grid gap-x-8 gap-y-3 rounded-lg border border-line bg-surface p-5 md:grid-cols-2 min-[1500px]:grid-cols-3">
               {JCP_SUMMARY_LABELS.map(([k, label]) => <div key={k}><dt className="text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{fmtRupiah(t[k])}</dd></div>)}
