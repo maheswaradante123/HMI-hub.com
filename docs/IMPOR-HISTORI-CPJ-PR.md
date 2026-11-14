@@ -21,7 +21,7 @@ Status: tahap baca dan cocokkan. Belum ada yang dimasukkan ke database.
 - `scripts/import-histori/review.py`: membuat `Daftar_CPJ_review.xlsx` (satu baris per jurnal, usulan nomor/tanggal, cek total).
 
 ## Mutasi rekening (dibaca 14 Nov 2026)
-- Mandiri 1290015674415 (rekening CPJ), Jan s/d 14 Nov 2026: 2.911 transaksi, jumlah dan total debit/kredit sama persis dengan ringkasan tiap statement; saldo berjalan tanpa putus (`scripts/import-histori/mandiri.py`, memakai pdfplumber).
+- Mandiri 1290015674415 (rekening CPJ), Jan s/d 14 Nov 2026: 4.309 transaksi, jumlah dan total debit/kredit sama persis dengan ringkasan tiap statement; saldo berjalan tanpa putus (`scripts/import-histori/mandiri.py`, memakai pdfplumber).
 - BRI 117001000653562 (Britama Bisnis, QRIS toko), Jun s/d Nov 2026: total debit sama persis dengan ringkasan; kredit kurang Rp 10 ribuan per bulan karena baris bunga tanpa uraian (`bri.py`). BCA menyusul.
 - Berkas mutasi sendiri tidak disimpan di repo (data sensitif).
 - Mencocokkan baris CPJ ke mutasi dengan jumlah persis hanya mengena 22% baris (33% nilai), karena banyak pembayaran digabung atau tunai; total mingguan Mandiri juga tidak sejajar dengan CPJ karena rekening ini juga dipakai transaksi usaha lain. Pencocokan harus berupa usulan per baris yang dikonfirmasi pemilik, bukan otomatis.
