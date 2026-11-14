@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CONFIGS } from "@/lib/docs/config";
-import { parseDoc, parseQty, type Payload } from "@/lib/docs/parse";
+import { normalizeDetails, parseDoc, parseQty, type Payload } from "@/lib/docs/parse";
 import { cleanCwItems, cwTotals } from "@/lib/docs/cw";
 import { dbMessage } from "@/lib/docs/errors";
 import { dispatchNotifications } from "@/lib/notify/send";
@@ -48,6 +48,38 @@ export async function saveDoc(slug: string, id: string, _prev: DocFormState, for
 
   revalidatePath(`/d/${slug}`);
   redirect(`/d/${slug}/${data as string}?ok=disimpan`);
+}
+
+// CPJ yang sudah lewat (ACC atau direalisasi): tambah/revisi folder bukti dan rincian Petty Cash saja; angka tidak berubah.
+export async function saveJcpDocs(id: string, _prev: DocFormState, formData: FormData): Promise<DocFormState> {
+  const session = await getSession();
+  if (!session) redirect("/login?error=akses");
+  const raw = String(formData.get("payload") ?? "");
+  if (!UUID.test(id)) return { error: "Dokumen tidak valid.", payload: raw };
+  if (!session.can("cpj_journal", "edit")) return { error: "Anda tidak memiliki izin untuk melengkapi dokumen CPJ.", payload: raw };
+  let lines: { line_no?: number; proof?: string; details?: string }[];
+  try { lines = JSON.parse(raw).lines ?? []; } catch { return { error: "Isian tidak terbaca. Muat ulang halaman lalu coba lagi.", payload: raw }; }
+  if (!Array.isArray(lines) || lines.length > 200) return { error: "Isian tidak terbaca.", payload: raw };
+  const out: { line_no: number; proof: string; details: string | null }[] = [];
+  for (const l of lines) {
+    const no = Number(l.line_no);
+    if (!Number.isInteger(no) || no < 1) return { error: "Nomor baris tidak valid.", payload: raw };
+    const proof = String(l.proof ?? "").trim();
+    if (proof.length > 1000) return { error: `Baris ${no}: tautan bukti terlalu panjang.`, payload: raw };
+    let details: string | null = null;
+    const t = String(l.details ?? "").trim();
+    if (t) {
+      const r = normalizeDetails(t, `Baris ${no}: `);
+      if ("error" in r) return { error: r.error, payload: raw };
+      details = String(r.v);
+    }
+    out.push({ line_no: no, proof, details });
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("jcp_update_docs", { p_id: id, p_lines: out });
+  if (error) return { error: dbMessage(error), payload: raw };
+  revalidatePath(`/d/jcp/${id}`);
+  redirect(`/d/jcp/${id}?ok=disimpan`);
 }
 
 // Penimbangan Karkas: item diketik bebas + kategori. Item yang belum ada di master dibuat otomatis, lalu dokumen disimpan

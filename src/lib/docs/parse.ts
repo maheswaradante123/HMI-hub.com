@@ -26,7 +26,7 @@ export type Parsed = { ok: true; header: Row; children: Record<string, Row[]> } 
 export type Payload = { header?: Record<string, string>; children?: Record<string, Record<string, string>[]> };
 
 // Rincian Petty Cash: daftar transaksi {no, date, text, amount, proof}. Baris kosong dibuang; hasilnya teks JSON yang sudah dinormalkan.
-function parseDetails(t: string, where: string): { v: Value } | { error: string } {
+export function normalizeDetails(t: string, where: string): { v: Value } | { error: string } {
   if (t.length > 40000) return { error: `${where}Rincian Petty Cash terlalu panjang.` };
   let arr: unknown;
   try { arr = JSON.parse(t); } catch { return { error: `${where}Rincian Petty Cash tidak terbaca.` }; }
@@ -86,7 +86,7 @@ function parseField(f: Field, raw: string, where: string): { v: Value } | { erro
       return { v: neg ? -n : n };
     }
     case "json":
-      return parseDetails(t, where);
+      return normalizeDetails(t, where);
     case "ref":
       return UUID.test(t) ? { v: t } : { error: `${where}${f.label} belum dipilih dengan benar.` };
     case "select":

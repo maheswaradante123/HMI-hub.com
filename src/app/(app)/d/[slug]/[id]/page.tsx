@@ -280,7 +280,7 @@ export default async function DocDetailPage({
                         <td className="px-3 py-2 text-right tabular-nums">{r.real_price === null ? "-" : fmtRupiah(Number(r.real_price))}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.real_qty === null ? "-" : fmtQty(Number(r.real_qty))}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{ra === null ? "-" : fmtRupiah(ra)}</td>
-                        <td className="px-3 py-2">{String(r.proof ?? "")}</td>
+                        <td className="px-3 py-2">{/^https?:\/\//.test(String(r.proof ?? "")) ? <a className="font-semibold text-brand underline" href={String(r.proof)} target="_blank" rel="noopener noreferrer">Buka folder</a> : String(r.proof ?? "")}</td>
                       </tr>
                     );
                   })}
@@ -409,6 +409,9 @@ export default async function DocDetailPage({
 
       <div className="no-print mt-8 flex flex-wrap gap-3">
         {canEdit && <Link href={`/d/${slug}/${id}/ubah`} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">{status === "ACC" ? "Isi realisasi" : "Ubah draf"}</Link>}
+        {slug === "jcp" && status !== "VOID" && session.can("cpj_journal", "edit") && (
+          <Link href={`/d/jcp/${id}/dokumen`} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">Lengkapi dokumen</Link>
+        )}
         {next.map((n) => <Link key={n.label} href={n.href(id)} className="rounded-md border-2 border-brand px-5 py-2.5 text-lg font-semibold text-brand hover:bg-background">{n.label}</Link>)}
         <PrintButton />
       </div>
