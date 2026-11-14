@@ -103,7 +103,7 @@ export function parseDoc(cfg: DocConfig, payload: Payload): Parsed {
       for (const r of rows) {
         const v = r[f.name];
         if (typeof v !== "string") continue;
-        if (seen.has(v) && ["product_id", "non_carcass_type_id"].includes(f.name)) {
+        if (seen.has(v) && ["product_id", "non_carcass_type_id", "invoice_id"].includes(f.name)) {
           return { ok: false, error: `${c.title}: ${f.label} yang sama diisi lebih dari sekali. Gabungkan jadi satu baris.` };
         }
         seen.add(v);

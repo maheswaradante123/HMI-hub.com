@@ -89,3 +89,11 @@ test("Kwitansi: customer dan minimal satu invoice wajib", () => {
   assert.equal(parseDoc(kw, { header: { customer_id: "", receipt_date: "2026-11-12" }, children: { items: [{ invoice_id: U2 }] } }).ok, false);
   assert.equal(parseDoc(kw, { header: { customer_id: U1, receipt_date: "2026-11-12" }, children: { items: [{ invoice_id: U2 }] } }).ok, true);
 });
+
+test("kwitansi: invoice yang sama tidak boleh dipilih dua kali", () => {
+  const kw = CONFIGS.kw;
+  const inv = "11111111-1111-4111-8111-111111111111";
+  const r = parseDoc(kw, { header: { customer_id: U1, receipt_date: "2026-11-14" }, children: { items: [{ invoice_id: inv }, { invoice_id: inv }] } });
+  assert.equal(r.ok, false);
+  assert.match(r.ok ? "" : r.error, /lebih dari sekali/);
+});

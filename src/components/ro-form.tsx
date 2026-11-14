@@ -7,6 +7,7 @@ import { RO_DELIVERY, RO_PACK, RO_PAYMENT } from "@/lib/docs/config";
 import { parseQty } from "@/lib/docs/parse";
 import { parseMoney } from "@/lib/pricing/schema";
 import { docUnit, fmtRupiah } from "@/lib/docs/format";
+import { DriveUpload } from "@/components/drive-upload";
 
 export type RoCustomer = { id: string; name: string; code: string; phone: string; address: string; term: number };
 export type RoProduct = { id: string; code: string; name: string; unit: string };
@@ -119,6 +120,28 @@ export function RoForm({ id, initial, customers, products: productList, units, c
               <select id="ro-dm" className={inp} value={h.delivery_method ?? ""} onChange={(e) => setHead("delivery_method", e.target.value)}>
                 <option value="">Pilih...</option>{RO_DELIVERY.map((o) => <option key={o}>{o}</option>)}
               </select>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-4 text-sm font-bold uppercase tracking-widest text-muted">PO customer</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className={lab} htmlFor="ro-pono">Nomor PO customer</label>
+              <input id="ro-pono" className={inp} value={h.customer_po_no ?? ""} onChange={(e) => setHead("customer_po_no", e.target.value)} />
+              <p className="mt-1 text-sm text-muted">Isi bila customer menerbitkan PO. Bila tidak ada nomornya, kosongkan.</p>
+            </div>
+            <div className="md:col-span-2">
+              <label className={lab} htmlFor="ro-pourl">Lampiran PO customer *</label>
+              <div className="flex items-start gap-2">
+                <input id="ro-pourl" className={inp} autoComplete="off" placeholder="Unggah file atau tempel tautan" value={h.customer_po_url ?? ""} onChange={(e) => setHead("customer_po_url", e.target.value)} />
+                <DriveUpload area="RO" label="Unggah PO" onDone={(link) => setHead("customer_po_url", link)} />
+              </div>
+              {h.customer_po_url && /^https?:\/\//.test(h.customer_po_url) && (
+                <p className="mt-1 text-sm"><a className="font-semibold text-brand underline" href={h.customer_po_url} target="_blank" rel="noopener noreferrer">Buka lampiran</a></p>
+              )}
+              <p className="mt-1 text-sm text-muted">Wajib. Bila customer tidak menerbitkan PO, screenshot WhatsApp pesanannya sudah cukup.</p>
             </div>
           </div>
         </section>

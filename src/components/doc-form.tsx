@@ -15,8 +15,8 @@ const inputCls = "w-full rounded-md border-2 border-line bg-white px-3 py-2.5 te
 type Row = Record<string, string>;
 export type FormValues = { header: Row; children: Record<string, Row[]> };
 
-function Control({ f, value, onChange, refs, id, groupValue }: {
-  f: Field; value: string; onChange: (v: string) => void; refs: Record<string, RefOption[]>; id: string; groupValue?: string;
+function Control({ f, value, onChange, refs, id, groupValue, taken }: {
+  f: Field; value: string; onChange: (v: string) => void; refs: Record<string, RefOption[]>; id: string; groupValue?: string; taken?: Set<string>;
 }) {
   const common = { id, value, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => onChange(e.target.value), className: inputCls };
   if (f.kind === "textarea") return <textarea {...common} rows={2} />;
@@ -30,7 +30,8 @@ function Control({ f, value, onChange, refs, id, groupValue }: {
     );
   if (f.kind === "ref") {
     const all = refs[refKey(f)] ?? [];
-    const opts = f.refGroup ? all.filter((o) => (groupValue && o.group === groupValue) || o.value === value) : all;
+    // Pilihan berkelompok (mis. invoice per customer) tidak boleh dipilih dua kali dalam satu dokumen.
+    const opts = f.refGroup ? all.filter((o) => (groupValue && o.group === groupValue && !taken?.has(o.value)) || o.value === value) : all;
     return (
       <select {...common}>
         <option value="">{f.refGroup && !groupValue ? "Pilih customer dulu" : f.required ? "Pilih..." : "Tidak dipilih"}</option>
@@ -121,7 +122,8 @@ export function DocForm({ slug, id, header, lines, refs, initial, cancelHref }: 
                     {c.fields.map((f) => (
                       <div key={f.name}>
                         <label htmlFor={`${c.key}-${i}-${f.name}`} className="mb-1 block font-semibold">{f.label}</label>
-                        <Control f={f} id={`${c.key}-${i}-${f.name}`} value={row[f.name] ?? ""} onChange={(v) => setCell(c.key, i, f.name, v)} refs={refs} groupValue={f.refGroup ? h[f.refGroup] ?? "" : undefined} />
+                        <Control f={f} id={`${c.key}-${i}-${f.name}`} value={row[f.name] ?? ""} onChange={(v) => setCell(c.key, i, f.name, v)} refs={refs} groupValue={f.refGroup ? h[f.refGroup] ?? "" : undefined}
+                          taken={f.refGroup ? new Set(list.filter((_, j) => j !== i).map((x) => x[f.name]).filter(Boolean)) : undefined} />
                       </div>
                     ))}
                   </div>
