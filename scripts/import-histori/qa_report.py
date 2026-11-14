@@ -32,6 +32,21 @@ for b in bank:
         sc = (-len(tok(l['desc']) & tok(b['remark'])), abs(dd - 3))
         if best is None or sc < best[0]: best = (sc, l, k)
     if best: used.add(best[2]); pairs[id(b)] = best[1]
+# pass 2: selisih kecil (biaya transfer/pembulatan) - jumlah beda <= Rp10.000 dan <= 1%, tanggal sama jendela, wajib ada kata yang sama
+approx = set()
+for b in bank:
+    if id(b) in pairs or FEE(b) or HUTANG(b) or INTERNAL(b): continue
+    bd = D(b['date']); best = None
+    for l in lines:
+        k = (l['journal'], l['line_no'])
+        if k in used or not l['real'] or l['flag'] == 'INCOMING': continue
+        diff = abs(l['real'] - b['debit'])
+        if diff == 0 or diff > 10000 or diff > 0.01 * b['debit']: continue
+        dd = (bd - l['jdate']).days
+        if not (-7 <= dd <= 14) or not (tok(l['desc']) & tok(b['remark'])): continue
+        sc = (diff, abs(dd - 3))
+        if best is None or sc < best[0]: best = (sc, l, k)
+    if best: used.add(best[2]); pairs[id(b)] = best[1]; approx.add(id(b))
 matched = [b for b in bank if id(b) in pairs]
 unm = [b for b in bank if id(b) not in pairs and not FEE(b) and not HUTANG(b) and not INTERNAL(b) and D(b['date']) <= datetime.date(2026, 9, 18)]
 unm_after = [b for b in bank if id(b) not in pairs and not FEE(b) and not HUTANG(b) and not INTERNAL(b) and D(b['date']) > datetime.date(2026, 9, 18)]
@@ -58,7 +73,7 @@ sheet('Tanggal jurnal', ['Jurnal', 'Tanggal jurnal (usulan)', 'Tanggal di header
 sheet('Debit bank tanpa pasangan', ['Tanggal', 'Jumlah', 'Keterangan bank', 'Keterangan (catatan)'],
       [[b['date'], b['debit'], b['remark'], 'Maheswara Aulia Khrisna - tentukan masuk CPJ atau tidak' if MAK(b) else ('Istianto tanpa kata hutang - cek' if re.search('istianto', b['remark'], re.I) else '')] for b in unm], [12, 16, 110, 50])
 sheet('Debit bank 19 Sep - 14 Nov', ['Tanggal', 'Jumlah', 'Keterangan bank'], [[b['date'], b['debit'], b['remark']] for b in unm_after], [12, 16, 110])
-sheet('Pasangan bank-CPJ', ['Tanggal bank', 'Jumlah', 'Keterangan bank', 'Jurnal', 'Baris', 'Deskripsi CPJ'], [[b['date'], b['debit'], b['remark'], pairs[id(b)]['journal'], pairs[id(b)]['line_no'], pairs[id(b)]['desc']] for b in matched], [12, 16, 90, 16, 7, 50])
+sheet('Pasangan bank-CPJ', ['Tanggal bank', 'Jumlah bank', 'Keterangan bank', 'Jurnal', 'Baris', 'Deskripsi CPJ', 'Realisasi CPJ', 'Jenis'], [[b['date'], b['debit'], b['remark'], pairs[id(b)]['journal'], pairs[id(b)]['line_no'], pairs[id(b)]['desc'], round(pairs[id(b)]['real']), 'selisih kecil' if id(b) in approx else 'persis'] for b in matched], [12, 16, 90, 16, 7, 50, 16, 14])
 sheet('CPJ tanpa PR', ['Jurnal', 'Baris', 'Tanggal', 'A/C', 'Deskripsi', 'Rencana', 'Realisasi', 'Jenis baris', 'Catatan Excel'],
       [[l['journal'], l['line_no'], l['date'], l['ac'], l['desc'], round(l['plan']), round(l['real']), l['flag'], l['text']] for l in lines if not l['pr'] and l['plan']], [16, 7, 12, 7, 60, 14, 14, 11, 12])
 sheet('CPJ real. tanpa pasangan bank', ['Jurnal', 'Baris', 'Tanggal', 'Deskripsi', 'Realisasi', 'Catatan Excel (kanal)'],
