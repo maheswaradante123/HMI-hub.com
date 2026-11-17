@@ -22,13 +22,13 @@ export default async function ProformaPage() {
           </tr></thead>
           <tbody>
             {rows.map(({ head: o, members: m }) => {
-              const sum = (k: "total" | "discount" | "initial_weight") => m.reduce((a, x) => a + x[k], 0);
+              const sum = (k: "total" | "discount" | "initial_weight") => m.reduce((a, x) => a + (x[k] ?? 0), 0);
               return (
                 <tr key={o.id} className="border-b border-line last:border-0">
                   <td className={td}><Link href={`/qurban/${o.id}`} className="font-semibold text-brand underline">{o.pro_no}</Link></td>
                   <td className={td}>{tgl(o.pro_date)}</td><td className={td}>{o.customer_nick}</td>
                   <td className={td}>{m.length > 1 ? <>{m.map((x) => x.cow_no).join(", ")} <span className="text-muted">({m.length} sapi)</span></> : o.cow_no}</td>
-                  <td className={`${td} text-right tabular-nums`}>{kg(sum("initial_weight"))}</td>
+                  <td className={`${td} text-right tabular-nums`}>{m.every((x) => x.initial_weight === null) ? "-" : kg(sum("initial_weight"))}</td>
                   <td className={`${td} text-right tabular-nums`}>{rp(sum("total"))}</td>
                   <td className={`${td} text-right tabular-nums`}>{rp(sum("discount"))}</td>
                   <td className={`${td} text-right tabular-nums`}>{rp(sum("total") - sum("discount"))}</td>

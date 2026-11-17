@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { getSettings, listOrders } from "@/lib/qurban/data";
-import { CHOICE_LABEL, kg, rp, tgl } from "@/lib/qurban/format";
+import { CHOICE_LABEL, kg, kgOpt, rp, tgl } from "@/lib/qurban/format";
 import { Empty, Head, Table, td, th } from "@/components/qurban/ui";
 import { QForm, fieldCls } from "@/components/qurban/qform";
 import { setChoice } from "../actions";
@@ -14,17 +14,17 @@ export default async function PilihanPage() {
   const canEdit = session.can("qurban", "edit");
   return (
     <div>
-      <Head title="Pilihan Pemilik" hint={`Setelah masa perawatan, pemilik memilih: dipakai sendiri, dijual ke pihak lain, atau dijual kembali ke HMI. Batas pemberitahuan ${tgl(st.notice_deadline)}. Nilai beli kembali = bobot terakhir × harga beli kembali kelas saat beli.`} />
+      <Head title="Pilihan Pemilik" hint={`Setelah masa perawatan, pemilik memilih: dipakai sendiri, dijual ke pihak lain, atau dijual kembali ke HMI. Batas pemberitahuan ${tgl(st.notice_deadline)}. Nilai beli kembali = bobot terakhir × harga beli kembali kelas saat beli; sapi jogrok memakai nilai per ekor yang disepakati.`} />
       {rows.length === 0 ? <Empty>Belum ada pesanan lunas.</Empty> : (
         <Table>
-          <thead className="border-b border-line"><tr>{["Sapi", "Pelanggan", "Bobot terakhir", "Harga beli kembali/Kg", "Perkiraan nilai beli kembali", "Pilihan", "Dicatat", "Ubah"].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}</tr></thead>
+          <thead className="border-b border-line"><tr>{["Sapi", "Pelanggan", "Bobot terakhir", "Harga beli kembali (Kg atau ekor)", "Perkiraan nilai beli kembali", "Pilihan", "Dicatat", "Ubah"].map((h) => <th key={h} scope="col" className={th}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((o) => (
               <tr key={o.id} className="border-b border-line last:border-0">
                 <td className={td}>{o.cow_no}</td><td className={td}>{o.customer_nick}</td>
-                <td className={`${td} text-right tabular-nums`}>{kg(o.last_weight)}</td>
-                <td className={`${td} text-right tabular-nums`}>{rp(o.buyback_price)}</td>
-                <td className={`${td} text-right tabular-nums`}>{rp(o.last_weight * o.buyback_price)}</td>
+                <td className={`${td} text-right tabular-nums`}>{kgOpt(o.last_weight)}</td>
+                <td className={`${td} text-right tabular-nums`}>{rp(o.buyback_price)}{o.sale_mode === "HEAD" ? " /ekor" : " /Kg"}</td>
+                <td className={`${td} text-right tabular-nums`}>{rp(o.sale_mode === "HEAD" ? o.buyback_price : (o.last_weight ?? 0) * o.buyback_price)}</td>
                 <td className={td}>{o.owner_choice ? CHOICE_LABEL[o.owner_choice] : "Belum dipilih"}</td>
                 <td className={td}>{tgl(o.choice_date)}</td>
                 <td className={td}>

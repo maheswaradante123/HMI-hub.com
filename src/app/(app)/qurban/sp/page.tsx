@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listBuyers, listOrders } from "@/lib/qurban/data";
-import { kg, tgl } from "@/lib/qurban/format";
+import { kg, kgOpt, tgl } from "@/lib/qurban/format";
 import { Empty, Head, Table, td, th } from "@/components/qurban/ui";
 
 export default async function SpList() {
@@ -25,7 +25,7 @@ export default async function SpList() {
               return (
                 <tr key={o.id} className="border-b border-line last:border-0">
                   <td className={td}>{o.cow_no}</td><td className={td}>{o.customer_nick}</td>
-                  <td className={`${td} text-right tabular-nums`}>{kg(o.initial_weight)}</td><td className={td}>{tgl(o.paid_at)}</td>
+                  <td className={`${td} text-right tabular-nums`}>{kgOpt(o.initial_weight)}</td><td className={td}>{tgl(o.paid_at)}</td>
                   <td className={td}>{b?.full_name ?? (canSp ? "Belum diisi" : "-")}</td>
                   <td className={td}>{b?.sp_jb_no ?? "-"}</td><td className={td}>{b?.sp_pl_no ?? "-"}</td>
                   <td className={`${td} space-x-3 whitespace-nowrap`}>

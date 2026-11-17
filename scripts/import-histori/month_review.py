@@ -123,8 +123,8 @@ for b in mb:
     elif re.search(r'ATM|S1RH', b['remark']) and not p.startswith(('CEN', 'BRI')): act = 'TANYA: penarikan/transfer ATM'
     elif not wkno: act = 'TANYA: jatuh sebelum CPJ pertama (pekan Desember, CPJ-nya belum ada)'
     else: act = 'Tambah baris NON_CPJ'
-    rows.append([b['date'], 'Mandiri', b['debit'], p, note, b['remark'][:70] if not note else '', wkno or '(sebelum jurnal pertama)', act, (g['ac'] if g else ''), (g['desc'][:35] if g else ''), 'Ya / Tidak / ubah: '])
-sheet('Transaksi bank belum di CPJ', ['Tanggal', 'Bank', 'Jumlah', 'Penerima', 'Catatan transfer', 'Keterangan bank', 'Masuk jurnal', 'Usulan perlakuan', 'Usulan A/C (dari baris mirip)', 'Contoh baris CPJ mirip', 'Keputusan Anda'], rows, [12, 9, 14, 38, 38, 30, 20, 44, 14, 36, 22])
+    rows.append([b['date'], 'Mandiri', b['debit'], p, note, b['remark'][:70] if not note else '', wkno or '(sebelum jurnal pertama)', act, (g['ac'] if g else ''), (g['desc'][:35] if g else ''), None, None])
+sheet('Transaksi bank belum di CPJ', ['Tanggal', 'Bank', 'Jumlah', 'Penerima', 'Catatan transfer', 'Keterangan bank', 'Masuk jurnal', 'Usulan perlakuan', 'Usulan A/C (dari baris mirip)', 'Contoh baris CPJ mirip', 'Keputusan Anda', 'Catatan Anda'], rows, [12, 9, 14, 38, 38, 30, 20, 44, 14, 36, 22, 30])
 mp = [b for b in mb if id(b) in pairs]
 sheet('Sudah berpasangan', ['Tanggal bank', 'Jumlah bank', 'Penerima', 'Catatan transfer', 'Jurnal', 'Baris', 'Deskripsi CPJ', 'Realisasi CPJ', 'Cara cocok'],
       [[b['date'], b['debit'], parse(b)[0], parse(b)[1], pairs[id(b)]['journal'], pairs[id(b)]['line_no'], pairs[id(b)]['desc'], round(pairs[id(b)]['real']), ('gabungan %d transfer' % group_of[id(b)]) if id(b) in group_of else ('selisih kecil' if id(b) in approx else 'persis')] for b in mp], [12, 14, 34, 34, 15, 7, 46, 14, 20])

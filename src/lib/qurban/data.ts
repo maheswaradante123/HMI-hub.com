@@ -3,13 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export type Order = {
-  id: string; cow_no: string; customer_nick: string; start_date: string; initial_weight: number;
+  id: string; cow_no: string; customer_nick: string; start_date: string; initial_weight: number | null; sale_mode: "WEIGHT" | "HEAD";
   pay_mode: "FULL" | "MONTHLY"; class_min: number; class_max: number | null;
   buy_price: number; care_price: number; buyback_price: number; discount: number; down_payment: number;
   status: "PROFORMA" | "INVOICE" | "PAID" | "CANCELLED";
   pro_no: string | null; pro_date: string | null; inv_no: string | null; inv_date: string | null; due_date: string | null;
   paid_at: string | null; owner_choice: "SELF" | "SELL_OUT" | "SELL_BACK" | null; choice_date: string | null;
-  cancel_reason: string | null; group_id: string | null; is_legacy: boolean; care_fixed: boolean; sp_jb_no: string | null; sp_pl_no: string | null; total: number; due_amount: number; last_weight: number; bill_count: number;
+  cancel_reason: string | null; group_id: string | null; is_legacy: boolean; care_fixed: boolean; sp_jb_no: string | null; sp_pl_no: string | null; total: number; due_amount: number; last_weight: number | null; bill_count: number;
 };
 export type Weighing = { id: string; order_id: string; weigh_date: string; weight: number; note: string | null };
 export type Bill = {

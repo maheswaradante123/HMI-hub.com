@@ -5,6 +5,8 @@ export const rp = (n: number | string | null | undefined) =>
   "Rp " + Math.round(Number(n ?? 0)).toLocaleString("id-ID");
 export const kg = (n: number | string | null | undefined) =>
   Number(n ?? 0).toLocaleString("id-ID", { maximumFractionDigits: 2 }) + " Kg";
+// Bobot yang boleh kosong (sapi jogrok tidak wajib ditimbang).
+export const kgOpt = (n: number | string | null | undefined) => (n === null || n === undefined || n === "" ? "-" : kg(n));
 export const tgl = (iso: string | null | undefined) => {
   if (!iso) return "-";
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);

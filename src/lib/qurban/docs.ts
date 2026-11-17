@@ -80,11 +80,16 @@ export async function qcDoc(q: Qc) {
     ppic: q.ppic_name, qc: q.qc_name, direktur: q.director_name,
     sapi: list
       .filter((o) => (o.start_date as string) <= lastDay)
-      .map((o) => ({
-        nomor: String(o.cow_no), bobotAwal: Number(o.initial_weight), tglAwal: o.start_date as string,
-        timbang: w.filter((x) => x.order_id === o.id).slice(1).filter((x) => x.weigh_date <= lastDay)
-          .map((x) => ({ tgl: x.weigh_date, bobot: x.weight })),
-      })),
+      .map((o) => {
+        const mine = w.filter((x) => x.order_id === o.id);
+        // Sapi jogrok boleh tanpa bobot awal: timbangan pertama (bila ada) jadi pembanding perkembangan.
+        const noInit = o.initial_weight === null || o.initial_weight === undefined;
+        const base = noInit && mine[0] ? { bobot: mine[0].weight, tgl: mine[0].weigh_date } : { bobot: Number(o.initial_weight ?? 0), tgl: o.start_date as string };
+        return {
+          nomor: String(o.cow_no), bobotAwal: base.bobot, tglAwal: base.tgl,
+          timbang: mine.slice(1).filter((x) => x.weigh_date <= lastDay).map((x) => ({ tgl: x.weigh_date, bobot: x.weight })),
+        };
+      }),
   };
 }
 
@@ -93,7 +98,7 @@ export async function spDoc(o: Order, b: Buyer) {
   const st = await getSettings();
   const end = st.care_end ?? "2027-05-17";
   const hari = Math.round((Date.parse(end + "T00:00:00Z") - Date.parse(b.sp_date + "T00:00:00Z")) / 864e5) + 1;
-  const sapi = [{ jenis: b.cow_type, nomor: o.cow_no, bobotAwal: o.initial_weight, nilaiAwal: Math.round(o.initial_weight * o.buy_price) }];
+  const sapi = [{ jenis: b.cow_type, nomor: o.cow_no, bobotAwal: o.initial_weight ?? 0, nilaiAwal: o.sale_mode === "HEAD" ? Math.round(o.buy_price) : Math.round((o.initial_weight ?? 0) * o.buy_price) }];
   const jb = { seq: b.sp_seq, tanggal: b.sp_date, pembeli: b.full_name, nik: b.nik, alamat: b.address, sapi };
   const pl = {
     seq: b.sp_seq, tanggal: b.sp_date, pemilik: b.full_name, nik: b.nik, alamat: b.address, telepon: b.phone ?? "",

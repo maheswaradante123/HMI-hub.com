@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { listOrders } from "@/lib/qurban/data";
-import { MODE_LABEL, kg, rp, tgl } from "@/lib/qurban/format";
+import { MODE_LABEL, kg, kgOpt, rp, tgl } from "@/lib/qurban/format";
 import { groupSizes } from "@/lib/qurban/group";
 import { Empty, Head, Pill, Table, td, th } from "@/components/qurban/ui";
 
@@ -56,11 +56,11 @@ export default async function MasterPesanan({ searchParams }: { searchParams: Pr
           <tbody>
             {rows.map((o) => (
               <tr key={o.id} className="border-b border-line last:border-0">
-                <td className={td}><Link href={`/qurban/${o.id}`} className="font-semibold text-brand underline">{o.cow_no}</Link></td>
+                <td className={td}><Link href={`/qurban/${o.id}`} className="font-semibold text-brand underline">{o.cow_no}</Link>{o.sale_mode === "HEAD" && <span className="ml-2 rounded bg-amber-200 px-2 py-0.5 text-sm font-semibold text-amber-950">Jogrok</span>}</td>
                 <td className={td}>{o.customer_nick}</td>
                 <td className={td}>{tgl(o.start_date)}</td>
-                <td className={`${td} text-right tabular-nums`}>{kg(o.initial_weight)}</td>
-                <td className={`${td} text-right tabular-nums`}>{kg(o.last_weight)}</td>
+                <td className={`${td} text-right tabular-nums`}>{kgOpt(o.initial_weight)}</td>
+                <td className={`${td} text-right tabular-nums`}>{kgOpt(o.last_weight)}</td>
                 <td className={td}>{MODE_LABEL[o.pay_mode]}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(o.total)}</td>
                 <td className={`${td} text-right tabular-nums`}>{rp(o.due_amount)}</td>

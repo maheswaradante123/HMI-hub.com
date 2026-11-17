@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { Forbidden } from "@/components/forbidden";
 import { getLines, getOrder, listBills, listGroup, listOrders, listWeighings } from "@/lib/qurban/data";
-import { CHOICE_LABEL, MODE_LABEL, bulan, kg, rp, tgl, todayIso } from "@/lib/qurban/format";
+import { CHOICE_LABEL, MODE_LABEL, bulan, kg, kgOpt, rp, tgl, todayIso } from "@/lib/qurban/format";
 import { PdfPreview } from "@/components/qurban/pdf-preview";
 import { Card, Dl, Pill, td, th } from "@/components/qurban/ui";
 import { Field, QForm, fieldCls } from "@/components/qurban/qform";
@@ -49,10 +49,10 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
           <Card title="Ringkasan">
             <Dl rows={[
               ["Pelanggan", o.customer_nick], ["Nomor sapi", o.cow_no], ["Mulai pemeliharaan", tgl(o.start_date)],
-              ["Bobot awal", kg(o.initial_weight)], ["Bobot terakhir", kg(o.last_weight)],
-              ["Kelas harga", `${o.class_min}${o.class_max ? `–${o.class_max}` : "+"} Kg`],
-              ["Harga beli", `${rp(o.buy_price)} / Kg`], ["Perawatan", `${rp(o.care_price)} / hari${o.care_fixed ? " (tarif tetap)" : ""}`],
-              ["Beli kembali", `${rp(o.buyback_price)} / Kg`], ["Cara bayar perawatan", MODE_LABEL[o.pay_mode]],
+              ["Bobot awal", kgOpt(o.initial_weight)], ["Bobot terakhir", kgOpt(o.last_weight)],
+              ...(o.sale_mode === "HEAD" ? [["Jenis jual", "Jogrok (per ekor, bukan per timbangan)"] as [string, string]] : [["Kelas harga", `${o.class_min}${o.class_max ? `–${o.class_max}` : "+"} Kg`] as [string, string]]),
+              ["Harga beli", o.sale_mode === "HEAD" ? `${rp(o.buy_price)} / ekor` : `${rp(o.buy_price)} / Kg`], ["Perawatan", `${rp(o.care_price)} / hari${o.care_fixed ? " (tarif tetap)" : ""}`],
+              ["Beli kembali", o.sale_mode === "HEAD" ? `${rp(o.buyback_price)} / ekor` : `${rp(o.buyback_price)} / Kg`], ["Cara bayar perawatan", MODE_LABEL[o.pay_mode]],
               ["No. Proforma", o.pro_no ?? "-"], ["No. Invoice", o.inv_no ?? "-"],
               ["Jatuh tempo invoice", tgl(o.due_date)], ["Pilihan pemilik", o.owner_choice ? CHOICE_LABEL[o.owner_choice] : "Belum dipilih"],
               ...(o.is_legacy ? [["Surat Perjanjian (arsip)", `JB: ${o.sp_jb_no ?? "-"} · PL: ${o.sp_pl_no ?? "-"}`] as [string, string]] : []),
@@ -98,7 +98,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
                         {together.map((m) => (
                           <tr key={m.id} className="border-b border-line">
                             <td className={td}>{m.id === o.id ? <b>{m.cow_no} (ini)</b> : <Link href={`/qurban/${m.id}`} className="font-semibold text-brand underline">{m.cow_no}</Link>}</td>
-                            <td className={`${td} text-right tabular-nums`}>{kg(m.initial_weight)}</td>
+                            <td className={`${td} text-right tabular-nums`}>{kgOpt(m.initial_weight)}</td>
                             <td className={`${td} text-right tabular-nums`}>{rp(m.total)}</td>
                             <td className={`${td} text-right tabular-nums`}>{rp(m.discount)}</td>
                             <td className={td}><Pill status={m.status} /></td>
@@ -127,7 +127,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
                   <QForm action={mergeProforma.bind(null, id)} label="Gabungkan yang dicentang">
                     <ul className="space-y-2">
                       {candidates.map((m) => (
-                        <li key={m.id}><label className="flex items-center gap-3 text-lg"><input type="checkbox" name="merge" value={m.id} className="h-5 w-5" /> Sapi {m.cow_no} · {kg(m.initial_weight)} · {rp(m.total - m.discount)} · {m.pro_no}</label></li>
+                        <li key={m.id}><label className="flex items-center gap-3 text-lg"><input type="checkbox" name="merge" value={m.id} className="h-5 w-5" /> Sapi {m.cow_no} · {kgOpt(m.initial_weight)} · {rp(m.total - m.discount)} · {m.pro_no}</label></li>
                       ))}
                     </ul>
                   </QForm>
