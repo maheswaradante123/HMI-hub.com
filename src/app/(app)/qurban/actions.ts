@@ -30,7 +30,7 @@ export async function createOrder(_p: QState, f: FormData): Promise<QState> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return { error: "Tanggal mulai pemeliharaan wajib diisi." };
   // Satu baris per sapi: cow_1/weight_1, cow_2/weight_2, ... (daftar dikirim form dalam "rows").
   const idx = str(f, "rows").split(",").filter((x) => /^\d+$/.test(x));
-  type Cow = { cow: string; weight?: number; head_price?: number; care_price?: number; buyback_price?: number };
+  type Cow = { cow: string; weight?: number; head_price?: number; care_price?: number; buyback_price?: number; care_end?: string };
   const cows: Cow[] = [];
   for (const i of idx) {
     const cow = str(f, `cow_${i}`);
@@ -44,8 +44,10 @@ export async function createOrder(_p: QState, f: FormData): Promise<QState> {
       if (!(hp > 0)) return { error: `Harga per ekor sapi ${cow} wajib diisi (angka Rupiah lebih dari 0).` };
       if (!(cp >= 0)) return { error: `Tarif perawatan per hari sapi ${cow} harus angka Rupiah, 0 atau lebih.` };
       if (!(bb >= 0)) return { error: `Nilai beli kembali sapi ${cow} harus angka Rupiah, 0 atau lebih.` };
+      const ce = str(f, `ce_${i}`);
+      if (ce && !/^\d{4}-\d{2}-\d{2}$/.test(ce)) return { error: `Tanggal akhir perawatan sapi ${cow} tidak valid.` };
       if (wRaw && !(w > 0)) return { error: `Bobot awal sapi ${cow} harus angka lebih dari 0, atau kosongkan.` };
-      cows.push({ cow, ...(w > 0 ? { weight: w } : {}), head_price: hp, care_price: cp, buyback_price: bb });
+      cows.push({ cow, ...(w > 0 ? { weight: w } : {}), head_price: hp, care_price: cp, buyback_price: bb, ...(ce ? { care_end: ce } : {}) });
       continue;
     }
     const weight = decPlain(f, `weight_${i}`);

@@ -6,6 +6,9 @@ import { Field, fieldCls } from "./qform";
 
 type Cls = { min_kg: number; max_kg: number | null; buy_price: number; care_price: number; buyback_price: number };
 type Row = { id: number; w: string; head: boolean; hp: string };
+// Isian awal sapi jogrok (pedet): perawatan Rp30.000/hari, dirawat sampai 2028. Semuanya bisa diubah.
+const JOGROK_CARE = "30000";
+const JOGROK_END = "2028-05-05";
 const rp = (n: number) => "Rp " + Math.round(n).toLocaleString("id-ID");
 
 export function OrderForm({ classes, today, careEnd }: { classes: Cls[]; today: string; careEnd: string }) {
@@ -45,10 +48,11 @@ export function OrderForm({ classes, today, careEnd }: { classes: Cls[]; today: 
                 </div>
                 <label className="mt-3 flex items-center gap-3 text-lg"><input type="checkbox" name={`head_${r.id}`} checked={r.head} onChange={(e) => upd(r.id, { head: e.target.checked })} className="h-5 w-5" /><span><b>Jual per ekor (sapi jogrok)</b> — harga tidak dihitung dari timbangan</span></label>
                 {r.head && (
-                  <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <Field id={`hp_${r.id}`} label="Harga sapi per ekor (Rp)"><input id={`hp_${r.id}`} name={`hp_${r.id}`} inputMode="numeric" value={r.hp} onChange={(e) => upd(r.id, { hp: e.target.value })} className={fieldCls} placeholder="contoh 18000000" /></Field>
-                    <Field id={`cp_${r.id}`} label="Perawatan per hari (Rp)"><input id={`cp_${r.id}`} name={`cp_${r.id}`} inputMode="numeric" className={fieldCls} placeholder="contoh 25000" /></Field>
+                    <Field id={`cp_${r.id}`} label="Perawatan per hari (Rp)"><input id={`cp_${r.id}`} name={`cp_${r.id}`} inputMode="numeric" defaultValue={JOGROK_CARE} className={fieldCls} /></Field>
                     <Field id={`bb_${r.id}`} label="Beli kembali per ekor (Rp)"><input id={`bb_${r.id}`} name={`bb_${r.id}`} inputMode="numeric" className={fieldCls} placeholder="contoh 15000000" /></Field>
+                    <Field id={`ce_${r.id}`} label="Perawatan sampai" hint="Kosongkan untuk mengikuti akhir perawatan umum."><input id={`ce_${r.id}`} name={`ce_${r.id}`} type="date" defaultValue={JOGROK_END} className={fieldCls} /></Field>
                   </div>
                 )}
                 <p aria-live="polite" className="mt-2 text-muted">

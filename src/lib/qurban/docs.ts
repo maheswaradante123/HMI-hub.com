@@ -96,7 +96,7 @@ export async function qcDoc(q: Qc) {
 // Data Surat Perjanjian satu pesanan (satu sapi per surat).
 export async function spDoc(o: Order, b: Buyer) {
   const st = await getSettings();
-  const end = st.care_end ?? "2027-05-17";
+  const end = o.care_end ?? st.care_end ?? "2027-05-17";
   const hari = Math.round((Date.parse(end + "T00:00:00Z") - Date.parse(b.sp_date + "T00:00:00Z")) / 864e5) + 1;
   const sapi = [{ jenis: b.cow_type, nomor: o.cow_no, bobotAwal: o.initial_weight ?? 0, nilaiAwal: o.sale_mode === "HEAD" ? Math.round(o.buy_price) : Math.round((o.initial_weight ?? 0) * o.buy_price) }];
   const jb = { seq: b.sp_seq, tanggal: b.sp_date, pembeli: b.full_name, nik: b.nik, alamat: b.address, sapi };

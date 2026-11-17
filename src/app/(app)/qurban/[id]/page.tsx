@@ -48,7 +48,7 @@ export default async function DetailPesanan({ params }: { params: Promise<{ id: 
         <>
           <Card title="Ringkasan">
             <Dl rows={[
-              ["Pelanggan", o.customer_nick], ["Nomor sapi", o.cow_no], ["Mulai pemeliharaan", tgl(o.start_date)],
+              ["Pelanggan", o.customer_nick], ["Nomor sapi", o.cow_no], ["Mulai pemeliharaan", tgl(o.start_date)], ...(o.care_end ? [["Perawatan sampai", tgl(o.care_end)] as [string, string]] : []),
               ["Bobot awal", kgOpt(o.initial_weight)], ["Bobot terakhir", kgOpt(o.last_weight)],
               ...(o.sale_mode === "HEAD" ? [["Jenis jual", "Jogrok (per ekor, bukan per timbangan)"] as [string, string]] : [["Kelas harga", `${o.class_min}${o.class_max ? `–${o.class_max}` : "+"} Kg`] as [string, string]]),
               ["Harga beli", o.sale_mode === "HEAD" ? `${rp(o.buy_price)} / ekor` : `${rp(o.buy_price)} / Kg`], ["Perawatan", `${rp(o.care_price)} / hari${o.care_fixed ? " (tarif tetap)" : ""}`],

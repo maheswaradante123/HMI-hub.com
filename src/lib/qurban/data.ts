@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/supabase/fetch-all";
 
 export type Order = {
-  id: string; cow_no: string; customer_nick: string; start_date: string; initial_weight: number | null; sale_mode: "WEIGHT" | "HEAD";
+  id: string; cow_no: string; customer_nick: string; start_date: string; initial_weight: number | null; sale_mode: "WEIGHT" | "HEAD"; care_end: string | null;
   pay_mode: "FULL" | "MONTHLY"; class_min: number; class_max: number | null;
   buy_price: number; care_price: number; buyback_price: number; discount: number; down_payment: number;
   status: "PROFORMA" | "INVOICE" | "PAID" | "CANCELLED";
