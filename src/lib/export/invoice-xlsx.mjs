@@ -56,7 +56,7 @@ export async function buatInvoiceXlsx(data) {
     views: [{ showGridLines: false }],
   });
   // lebar kolom (px Google Sheets -> karakter Excel)
-  const px = toko ? [40, 159, 68, 93, 112, 93, 95] : [45, 205, 64, 65, 96, 87, 97]; // px @96dpi, diukur dari PDF contoh
+  const px = toko ? [40, 159, 68, 93, 112, 93, 95] : [45, 189, 64, 65, 112, 87, 97]; // px @96dpi (kolom harga dilebarkan agar 33.000.000 muat), diukur dari PDF contoh
   ws.columns = px.map((w) => ({ width: Math.round((w * LEBAR / SKALA / 7) * 10) / 10 }));
   const F = (o = {}) => ({ name: "Cairo", size: 10, ...o });
   const fill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });

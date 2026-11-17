@@ -89,7 +89,9 @@ export async function buatInvoicePdf(d) {
       T(b.desc, 86.4, top + (SZ - fit) * 0.2, fit);
       centerIn(Number(b.qty).toLocaleString("en-US", { maximumFractionDigits: 2 }), COL[2], COL[3], top, SZ);
       centerIn(b.unit, COL[3], COL[4], top, SZ);
-      T("Rp", 363.5, top, SZ); rightAt(num(b.harga), 405.4, top, SZ);
+      // "Rp" mengikuti lebar angka (sama seperti kolom Total) supaya harga delapan digit seperti 33.000.000 tidak menimpa "Rp".
+      const hTxt = num(b.harga), hx = 405.4 - wd(hTxt, SZ);
+      T("Rp", Math.min(363.5, hx - 7.3 - wd("Rp", SZ)), top, SZ); T(hTxt, hx, top, SZ);
       const nTxt = num(j), nx = 470.2 - wd(nTxt, SZ);
       T("Rp", nx - 7.3 - wd("Rp", SZ), top, SZ); T(nTxt, nx, top, SZ);
       y += ROW; hline(49.9, RIGHT, y);
